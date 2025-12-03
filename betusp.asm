@@ -1,4 +1,3 @@
-
 ; Normal Commands:
 ;
 ; ['w']       - Chips[CurChips] += 1
@@ -1725,6 +1724,7 @@ InitialScreen1 : var #1200
   static InitialScreen1 + #397, #32
   static InitialScreen1 + #398, #32
   static InitialScreen1 + #399, #2825
+
   ;Linha 10
   static InitialScreen1 + #400, #2825
   static InitialScreen1 + #401, #32
@@ -5134,24 +5134,25 @@ ChipsColors : var #5
 ; |==================| Section: Main Code |==================|
 
 main:
+
   call _setInitialMoney
   call _setInitialChips
 
   call _showInitialScreen
   ceq _showTutorialScreen
 
-        GameStart:
-
+	GameStart:
+		
     call _showGameScreen
     call _showMoney
     call _showChips
 
-                GameLoop:
+		GameLoop:
 
       call _takeCommand
-
+      
       jnc StopGame
-
+      
       call _checkMoney
       jle MoneyUnderflow
       jgr MoneyOverflow
@@ -5159,10 +5160,10 @@ main:
       call _checkChips
 
       call _showMoney
-                        call _showChips
+			call _showChips
 
-                        jmp GameLoop
-                ;
+			jmp GameLoop
+		;
   ;
 
   MoneyUnderflow:
@@ -5227,7 +5228,7 @@ _showInitialScreen:
     jeq _showInitialScreen_Game
     cmp r0, r2                        ; [r0] == [r2] | Inchar Value == '?'
     jeq _showInitialScreen_Tutorial
-
+    
     loadn r0, #InitialScreen3
     call printScreen
 
@@ -5236,21 +5237,21 @@ _showInitialScreen:
     jeq _showInitialScreen_Game
     cmp r0, r2                        ; [r0] == [r2] | Inchar Value == '?'
     jeq _showInitialScreen_Tutorial
-
+    
     jmp _showInitialScreen_Loop 
 
   _showInitialScreen_Game:
     cmp r1, r2
     jmp _showInitialScreen_Exit
   ;
-
+  
   _showInitialScreen_Tutorial:
     cmp r1, r1
     jmp _showInitialScreen_Exit
   ;
-
+  
   _showInitialScreen_Exit:
-
+  
   pop r2
   pop r1
   pop r0
@@ -5287,7 +5288,7 @@ _showMoney:
   loadn r0, #Money
   loadi r1, r0
   loadn r5, #560     ; '0' + greenColor ( 48 + 512 )
-
+  
   call printMoney
 
   pop r5
@@ -5316,7 +5317,7 @@ _showChips:
   load  r6, CurChip
 
   _showChips_Loop:
-
+    
     add r7, r2, r0
     loadi r7, r7
 
@@ -5365,7 +5366,7 @@ _takeCommand:
   loadn r1, #255  ; Non-Inchar
   loadn r3, #0
   loadn r4, #1000
-
+  
   _takeCommand_Loop:
     inchar r0
     cmp r0, r1
@@ -5377,46 +5378,46 @@ _takeCommand:
 
   _takeCommand_LoopExit:
 
-  loadn r1, #119        ; 'w'
+  loadn r1, #119	; 'w'
   cmp r0, r1
   ceq updateChips
   jeq _takeCommand_SetC
 
-  loadn r1, #97        ; 'a'
+  loadn r1, #97	; 'a'
   cmp r0, r1
   ceq updateChips
   jeq _takeCommand_SetC
 
-  loadn r1, #115        ; 's'
+  loadn r1, #115	; 's'
   cmp r0, r1
   ceq updateChips
   jeq _takeCommand_SetC
 
-  loadn r1, #100        ; 'd'
+  loadn r1, #100	; 'd'
   cmp r0, r1
   ceq updateChips
   jeq _takeCommand_SetC
 
-  loadn r1, #13        ; <Enter>
+  loadn r1, #13	; <Enter>
   cmp r0, r1
   jeq _takeCommand_Enter
 
-  loadn r1, #32        ; <Space>
+  loadn r1, #32	; <Space>
   cmp r0, r1
   jeq _takeCommand_Space
 
-  loadn r1, #63        ; '?'
+  loadn r1, #63	; '?'
   cmp r0, r1
   jeq _takeCommand_Help
 
   loadn r1, #60 ; '<'
   cmp r0, r1
   jeq _takeCommand_ADMIN0
-
+  
   loadn r1, #62 ; '>'
   cmp r0, r1
   jeq _takeCommand_ADMIN1
-
+  
   loadn r1, #43 ; '+'
   cmp r0, r1
   jeq _takeCommand_ADMIN2
@@ -5424,7 +5425,7 @@ _takeCommand:
   loadn r1, #45 ; '-'
   cmp r0, r1
   jeq _takeCommand_ADMIN3
-
+  
   jmp _takeCommand_Loop
 
   _takeCommand_Enter:
@@ -5456,7 +5457,7 @@ _takeCommand:
     store Money, r0
     jmp _takeCommand_SetC
   ;
-
+  
   _takeCommand_ADMIN3:
     load  r0, Money
     loadn r1, #2
@@ -5480,7 +5481,7 @@ _takeCommand:
     clearc
     jmp _takeCommand_Exit
   ;
-
+  
   _takeCommand_Exit:
 
   pop r4
@@ -5576,13 +5577,13 @@ _setInitialMoney:
 _setInitialChips:
 
   push r0
-
+  
   loadn r0, #10
   call setChips
 
   loadn r0, #3
   store CurChip, r0
-
+  
   pop r0
   rts
 ; END _setInitialChips
@@ -5592,10 +5593,10 @@ _setInitialChips:
 ; |------------------| I/O Functions |------------------|
 
 printScreen: ; Use [r0] as Memory Adress of Screen
-
-        ; [r0] = Memory Adress
-        ; [r1] = Position to Outchar  | Index of Screen
-        ; [r2] = Limit (Constant #1200) 
+		
+	; [r0] = Memory Adress
+	; [r1] = Position to Outchar  | Index of Screen
+	; [r2] = Limit (Constant #1200) 
   ; [r3] = Character to Outchar
 
   push r1
@@ -5610,7 +5611,7 @@ printScreen: ; Use [r0] as Memory Adress of Screen
     add r3, r0, r1
     loadi r3, r3
     outchar r3, r1
-
+    
     inc r1
     cmp r1, r2
 
@@ -5619,11 +5620,11 @@ printScreen: ; Use [r0] as Memory Adress of Screen
   pop r3
   pop r2
   pop r1
-        rts
-; END printScreen        
+	rts
+; END printScreen	
 
 IncharDelay: ; User [r0] as Inchar value
-
+  
   ; [r0] = Inchar Value
   ; [r1] = Non-Inchar Value
   ; [r2] = Delay
@@ -5633,7 +5634,7 @@ IncharDelay: ; User [r0] as Inchar value
 
   loadn r1, #255
   loadn r2, #16384
-
+  
   readKeyDelay_Loop:
     inchar r0
     cmp r0, r1
@@ -5651,52 +5652,52 @@ IncharDelay: ; User [r0] as Inchar value
 
 printMoney: ; Use [r1] as Number to Outchar & [r5] as Constant color + '0'
 
-        ; [r0] = Constant #10
-        ; [r1] = Number to Outchar
-        ; [r2] = Digits to Outchar
-        ; [r3] = Qty of digits + 1
-        ; [r4] = Position to print
-        ; [r5] = Constant greenColor + '0' (512 + 48)
-        ; [r6] = Qty of digits to clean
+	; [r0] = Constant #10
+	; [r1] = Number to Outchar
+	; [r2] = Digits to Outchar
+	; [r3] = Qty of digits + 1
+	; [r4] = Position to print
+	; [r5] = Constant greenColor + '0' (512 + 48)
+	; [r6] = Qty of digits to clean
 
-        push r0
-        push r1
-        push r2
-        push r3
-        push r4
+	push r0
+	push r1
+	push r2
+	push r3
+	push r4
   push r5
   push r6
 
-        loadn r0, #10
-        loadn r3, #0
-        loadn r4, #113
+	loadn r0, #10
+	loadn r3, #0
+	loadn r4, #113
   loadn r6, #5
 
-        printMoney_PUSH:
-
-                mod r2, r1, r0
-
-                push r2
-                inc r3
+	printMoney_PUSH:
+		
+		mod r2, r1, r0
+		
+		push r2
+		inc r3
     dec r6
+		
+		div r1, r1, r0
+		
+		jnz printMoney_PUSH
+	;
+	
+	printMoney_POP:
+		
+		pop r2
+	
+		add r2, r2, r5
+		
+		outchar r2, r4
 
-                div r1, r1, r0
-
-                jnz printMoney_PUSH
-        ;
-
-        printMoney_POP:
-
-                pop r2
-
-                add r2, r2, r5
-
-                outchar r2, r4
-
-                inc r4
-                dec r3
-                jnz printMoney_POP                
-        ;
+		inc r4
+		dec r3
+		jnz printMoney_POP		
+	;
 
   cmp r3, r6
   jeq printMoney_EXIT
@@ -5709,38 +5710,38 @@ printMoney: ; Use [r1] as Number to Outchar & [r5] as Constant color + '0'
     inc r4
     dec r6
     jnz printMoney_Clean
-
-        printMoney_EXIT:
-
+	
+	printMoney_EXIT:
+	
   pop r6
   pop r5
-        pop r4
-        pop r3
-        pop r2
-        pop r1
-        pop r0
-        rts
+	pop r4
+	pop r3
+	pop r2
+	pop r1
+	pop r0
+	rts
 ; END printMoney
 
 waitEnter:
+	
+	; [r0] = Inchar Value
+	; [r1] = <Enter> Value
+	
+	push r0
+	push r1
+	
+	loadn r1, #13
+	
+	waitEnter_Loop:
+		inchar r0				
+		cmp r0, r1
+		jne waitEnter_Loop
+	;
 
-        ; [r0] = Inchar Value
-        ; [r1] = <Enter> Value
-
-        push r0
-        push r1
-
-        loadn r1, #13
-
-        waitEnter_Loop:
-                inchar r0                                
-                cmp r0, r1
-                jne waitEnter_Loop
-        ;
-
-        pop r1
-        pop r0
-        rts
+	pop r1
+	pop r0
+	rts
 ; END waitEnter
 
 ; |------------------| Chips Functions |------------------|
@@ -5756,28 +5757,28 @@ updateChips: ; User [r0] as WTD
   push r1
   push r2
 
-  loadn r1, #119        ; 'w'
+  loadn r1, #119	; 'w'
   cmp r0, r1
   jeq updateChips_w
 
-  loadn r1, #97        ; 'a'
+  loadn r1, #97	; 'a'
   cmp r0, r1
   jeq updateChips_a
 
-  loadn r1, #115        ; 's'
+  loadn r1, #115	; 's'
   cmp r0, r1
   jeq updateChips_s
 
-  loadn r1, #100        ; 'd'
+  loadn r1, #100	; 'd'
   cmp r0, r1
   jeq updateChips_d
 
   updateChips_w:
     call getChips         ; [r0] = Chips
     call getCurChip       ; [r1] = CurChip
-
+    
     add r0, r0, r1        ; [r0] = Chips + CurChips
-
+    
     load  r2, Money
     cmp r0, r2
     cel setChips          ; [r0] <= Money -> Store [r0]
@@ -5798,7 +5799,7 @@ updateChips: ; User [r0] as WTD
   updateChips_s:
     call getChips         ; [r0] = Chips
     call getCurChip       ; [r1] = CurChip
-
+    
     sub r0, r0, r1        ; [r0] = [r1] - [r0] === [r0] = CurChip - Chips
 
     loadn r2, #1
@@ -5897,7 +5898,7 @@ setChips: ; Use [r0] as Chips
 
   loadn r2, #5
   loadn r3, #10
-
+  
   setChips_Loop:
     mod r4, r0, r3
     div r0, r0, r3
@@ -5920,66 +5921,66 @@ setChips: ; Use [r0] as Chips
 ; |------------------| Wager Functions |------------------|
 
 wager: ; Use [r0] as Number
+	
+	; [r0] = Number | Chips
+	; [r1] = Aux    | Money
+	; [r2] = Aux    | Aux
 
-        ; [r0] = Number | Chips
-        ; [r1] = Aux    | Money
-        ; [r2] = Aux    | Aux
-
-        push r0
+	push r0
   push r1
-        push r2
-        push r3
+	push r2
+	push r3
 
   call writeWager
 
-        ; r0 % 111 == 0:                  ; xxx
-        loadn r1, #111
-        mod r2, r0, r1
-        jz wager_Triple
+	; r0 % 111 == 0:		  ; xxx
+	loadn r1, #111
+	mod r2, r0, r1
+	jz wager_Triple
+	
+	; r0 // 10 % 11 == 0:	; xxy
+	loadn r1, #10
+	div r2, r0, r1
+	
+	loadn r1, #11
+	mod r2, r2, r1
+	jz wager_Twice
+	
+	; r0 % 101 % 10 == 0:	; xyx
+	loadn r1, #101
+	mod r2, r0, r1
+	
+	loadn r1, #10
+	mod r2, r2, r1
+	jz wager_Twice
+	
+	; r0 % 100 % 11 == 0:	; yxx
+	loadn r1, #100
+	mod r2, r0, r1
+	
+	loadn r1, #11
+	mod r2, r2, r1
+	jz wager_Twice
+	
+	jmp waget_Once			  ; xyz
 
-        ; r0 // 10 % 11 == 0:        ; xxy
-        loadn r1, #10
-        div r2, r0, r1
-
-        loadn r1, #11
-        mod r2, r2, r1
-        jz wager_Twice
-
-        ; r0 % 101 % 10 == 0:        ; xyx
-        loadn r1, #101
-        mod r2, r0, r1
-
-        loadn r1, #10
-        mod r2, r2, r1
-        jz wager_Twice
-
-        ; r0 % 100 % 11 == 0:        ; yxx
-        loadn r1, #100
-        mod r2, r0, r1
-
-        loadn r1, #11
-        mod r2, r2, r1
-        jz wager_Twice
-
-        jmp waget_Once                          ; xyz
-
-        wager_Triple:
-                loadn r2, #3        ; [r2] = #3
+	wager_Triple:
+		loadn r2, #3        ; [r2] = #3
     jmp waget_CalMoney
-        ;
-
-        wager_Twice:
-                loadn r2, #2        ; [r2] = #2
+	;
+	
+	wager_Twice:
+		loadn r2, #2        ; [r2] = #2
     jmp waget_CalMoney
-        ;
+	;
 
   waget_Once:
-                loadn r2, #0        ; [r2] = #0
+		loadn r2, #0        ; [r2] = #0
     jmp waget_CalMoney
-        ;
+	;
 
-        waget_CalMoney:
-
+	waget_CalMoney:
+	
   call getChips       ; [r0] = Chips
   load r1, Money      ; [r1] = Money
   load r3, Limit      ; [r3] = Limit
@@ -6006,61 +6007,61 @@ wager: ; Use [r0] as Number
   waget_Store:
 
   store Money, r1
-
-        pop r3
-        pop r2
-        pop r1
-        pop r0
-        rts
+	
+	pop r3
+	pop r2
+	pop r1
+	pop r0
+	rts
 ; END wager
 
 writeWager: ; Use [r0] as Number to Outchar
+	
+	; [r0] = prgn to Outchar
+	; [r1] = Constant #10
+	; [r2] = Digit to Outchar
+	; [r3] = Contant yellowColor + '0' (2816 + 48)
+	; [r4] = Positions of the Digits
+	
+	push r0
+	push r1
+	push r2
+	push r3
+	push r4
+	
+	loadn r1, #10
+	loadn r3, #2864
+	
+	mod r2, r0, r1
+	div r0, r0, r1
+	
+	add r2, r2, r3
+	
+	loadn r4, #583
+	outchar r2, r4
 
-        ; [r0] = prgn to Outchar
-        ; [r1] = Constant #10
-        ; [r2] = Digit to Outchar
-        ; [r3] = Contant yellowColor + '0' (2816 + 48)
-        ; [r4] = Positions of the Digits
-
-        push r0
-        push r1
-        push r2
-        push r3
-        push r4
-
-        loadn r1, #10
-        loadn r3, #2864
-
-        mod r2, r0, r1
-        div r0, r0, r1
-
-        add r2, r2, r3
-
-        loadn r4, #583
-        outchar r2, r4
-
-        mod r2, r0, r1
-        div r0, r0, r1
-
-        add r2, r2, r3
-
-        loadn r4, #579
-        outchar r2, r4
-
-        mod r2, r0, r1
-        div r0, r0, r1
-
-        add r2, r2, r3
-
-        loadn r4, #575
-        outchar r2, r4
-
-        pop r4
-        pop r3
-        pop r2
-        pop r1
-        pop r0
-        rts
+	mod r2, r0, r1
+	div r0, r0, r1
+	
+	add r2, r2, r3
+	
+	loadn r4, #579
+	outchar r2, r4
+	
+	mod r2, r0, r1
+	div r0, r0, r1
+	
+	add r2, r2, r3
+	
+	loadn r4, #575
+	outchar r2, r4
+		
+	pop r4
+	pop r3
+	pop r2
+	pop r1
+	pop r0
+	rts
 ; END writeprgn
 
 ; |==================| END |==================|
