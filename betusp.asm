@@ -1,23 +1,25 @@
-; Normal Commands:
+; |==================| Seção: Manual do Usuário / Comandos |==================|
+
+; Comandos Normais:
 ;
-; ['w']       - Chips[CurChips] += 1
-; ['a']       - CurChips -= 1
-; ['s']       - CurChips += 1
-; ['d']       - Chips[CurChips] -= 1
-; [<Enter>]   - Confirm | Wager
-; [<Space>]   - Stop
-; ['?']       - Help
+; ['w']       - Chips[CurChip] += 1  (Aumenta aposta no dígito atual)
+; ['a']       - CurChip -= 1         (Move Cursor para Esquerda)
+; ['s']       - CurChip += 1         (Move Cursor para Direita - Lógica invertida no fluxo)
+; ['d']       - Chips[CurChip] -= 1  (Diminui aposta - Lógica invertida no fluxo)
+; [<Enter>]   - Confirmar | Apostar  (Gira a roleta)
+; [<Espaço>]  - Parar                (Pausa o Jogo)
+; ['?']       - Ajuda                (Tela de Tutorial)
 ;
-; Admin Commands:
+; Comandos de Administrador (Cheats):
 ;
-; ['>']       - Money  = Limit
-; ['<']       - Money  = 0
-; ['+']       - Money *= 2
-; ['-']       - Money /= 2
+; ['>']       - Money  = Limit       (Dinheiro Infinito)
+; ['<']       - Money  = 0           (Falência)
+; ['+']       - Money *= 2           (Dobra o Dinheiro)
+; ['-']       - Money /= 2           (Divide o Dinheiro)
 
 jmp main
 
-; |==================| Section: Cat |==================|
+; |==================| Seção: Gato |==================|
 
 ; This is Sir Gato.   (en)
 ; Este é o Sr. Gato.  (ptbr)
@@ -40,25 +42,31 @@ jmp main
 ; █████▄▄▄▄▀▀┴┴╚╧╧╝╧╧╝┴┴█████
 ; ███████████████████████████
 
-; |==================| Section: Memory Variables |==================|
+; |==================| Seção: Variáveis de Memória (Dados) |==================|
 
-Money : var #1
-  static Money, #64
+; --- Saldo do jogador ---
+Money : var #1           ; Reserva 1 espaço na memória para o dinheiro.
+  static Money, #64      ; Inicializa com 64 moedas.
 ;
 
-Limit : var #1
-  static Limit, #65535
+; --- Limite máximo de dinheiro ---
+Limit : var #1           ; Reserva 1 espaço na memória para o limite máximo de dinheiro;
+  static Limit, #65535   ; O limite máximo é 65535, que equivale a 2¹⁶ (valor máximo para uma máquina de 16 bits);
 ;
 
-ChipsInitialPosition : var #1
-  static ChipsInitialPosition, #293
+; --- Configuração de vídeo ---
+ChipsInitialPosition : var #1           ; Reserva 1 espaço na memória para guardar as coordenadas iniciais das fichas que serão desenhadas.
+  static ChipsInitialPosition, #293   ; Define onde os números das fichas irão começar a ser desenhados na tela.
 ;
 
-CurChip : var #1
-  static CurChip, #3
+; --- Controle de casa decimais das fichas de aposta ----
+CurChip : var #1       ; Reserva 1 espaço na memória para controle de casas decimais (saber qual casa decimal estamos editando para as fichas).
+  static CurChip, #3   ; Define que começa na posição 3 (vai de 0 a 4, começando na dezena de milhar e indo até a unidade);
 ;
 
-Chips : var #5
+; --- Valor fichas de aposta ---
+; O jogo guarda o valor das fichas separadas por dígitos para facilitar a edição na tela.
+Chips : var #5                ; Vetor de 5 posições.
   static Chips + #0, #0       ; 10000
   static Chips + #1, #0       ; 1000
   static Chips + #2, #0       ; 100
@@ -66,123 +74,132 @@ Chips : var #5
   static Chips + #4, #0       ; 1
 ;
 
+; --- Tabela de cores das fichas ---
+; Associa cada casa decimal a uma cor diferente na tela.
 ChipsColors : var #5
   static ChipsColors + #0, #1290       ; Roxo         (#1280)
   static ChipsColors + #1, #1034       ; Azul marinho (#1024)
   static ChipsColors + #2, #522        ; Verde        (#512)
   static ChipsColors + #3, #2314       ; Vermelho     (#2304)
-  static ChipsColors + #4, #10         ; Branco       (#0)
+  static ChipsColors + #4, #10           ; Branco       (#0)
 ;
 
-; |==================| Section: Main Code |==================|
+; |==================| Seção: Código Principal (Main) |==================|
 
 main:
 
   GameReStart:
-  
-  call _setInitialMoney
-  call _setInitialChips
-
-  call _showInitialScreen
-  ceq _showTutorialScreen
+    ; --- Inicialização de uma nova partida ---
+    call _setInitialMoney   ; Garante que o dinheiro seja válido (reseta para 64 se for 0).
+    call _setInitialChips   ; Reseta as fichas de aposta para o padrão (10).
+    
+    ; --- Telas de introdução ---
+    call _showInitialScreen  ; Mostra a tela de título animada.
+    ceq _showTutorialScreen  ; Se o usuário apertou '?' na tela anterior, chama o tutorial.
 
 	GameStart:
-		
-    call _showGameScreen
-    call _showMoney
-    call _showChips
+		; --- Loop principal do jogo ---
+    call _showGameScreen     ; Desenha a máquina caça-níqueis.
+    call _showMoney          ; Desenha o saldo atual.
+    call _showChips          ; Desenha o valor das fichas de  aposta atual;
 
 		GameLoop:
+      ; Entrada do jogador
+      call _takeCommand  ; Aguarda a entrada de uma tecla.
+                         ; Retorna Carry = 1 para continuar ou Carry = 0 para parar.
 
-      call _takeCommand
+      jnc Game_Stop      ; Se Carry = 0 (tecla espaço), vai para tela de pausa.
       
-      jnc Game_Stop
-      
-      call _checkMoney
-      jle Game_Lose
-      jgr Game_Win
+      ; Verificações de estado 
+      call _checkMoney   ; Verifica se ganhou (se chegou ao limite de dinheiro) ou se perdeu (chegou a 0).
+      jle Game_Lose      ; Se Money <= 0, fim de jogo (DERROTA).
+      jgr Game_Win       ; Se Money >= Limit, fim de jogo (VITÓRIA).
 
-      call _checkChips
+      ; Checagem de fichas de aposta
+      call _checkChips   ; Garante que fichas de aposta <= dinheiro disponível.
 
-      call _showMoney
-			call _showChips
+      ; Atualiza valores na tela
+      call _showMoney    ; Atualiza o número do dinheiro na tela;
+			call _showChips    ; Atualiza o número da aposta na tela.
 
-			jmp GameLoop
+			jmp GameLoop       ; Repete o loop do game.
 		;
   ;
 
+; --- Rotinas de fim de jogo ---
   Game_Lose:
-    call _showLoseScreen
-    jmp GameReStart
+    call _showLoseScreen   ; Chama a tela de perda.
+    jmp GameReStart        ; Reinicia o jogo.
   ;
 
   Game_Win:
-    call _showWinScreen
-    jmp GameReStart
+    call _showWinScreen    ; Chama a tela de vitória.
+    jmp GameReStart        ; Reinicia o jogo.
   ;
 
   Game_Stop:
-    call _showStopScreen
-    jmp GameStart
+    call _showStopScreen   ; Chama a tela de pause.
+    jmp GameStart          ; Retorna ao jogo (sem resetar o dinheiro).
   ;
   
 ;
 
-; |==================| Section: Routines  |==================|
+; |==================| Seção: Rotinas  |==================|
 
-; |------------------| Screens Routines |------------------|
+; |------------------| Rotinas de Tela |------------------|
 
 _showInitialScreen:
   push r0
   push r1
   push r2
 
-  loadn r1, #13   ; [r1] = <Enter>
-  loadn r2, #63   ; [r2] = '?'
+  loadn r1, #13   ; 13 = <Enter> (Código ASCII)
+  loadn r2, #63   ; 63 = '?'     (Código ASCII)
 
   _showInitialScreen_Loop:
+    ; Loop de animação: Alterna entre 3 telas enquanto espera o usuário.
 
+    ; Tela 1
     loadn r0, #InitialScreen1
     call printScreen
+    call IncharDelay                  ; Lê a entrada com delay (para dar tempo de ver a tela).
+    cmp r0, r1                        ; Irá comparar r0 com r1 = 'Enter'
+    jeq _showInitialScreen_Game       ; Se for igual, vai para o jogo.
+    cmp r0, r2                        ; Irá comparar r0 com r2 = '?'
+    jeq _showInitialScreen_Tutorial   ; Se for igual, vai para o tutorial.
 
-    call IncharDelay                  ; [r0] = Inchar Value
-    cmp r0, r1                        ; [r0] == [r1] | Inchar Value == <Enter>
-    jeq _showInitialScreen_Game
-    cmp r0, r2                        ; [r0] == [r2] | Inchar Value == '?'
-    jeq _showInitialScreen_Tutorial
-
+    ; Tela 2
     loadn r0, #InitialScreen2
     call printScreen
-
-    call IncharDelay                  ; [r0] = Inchar Value
-    cmp r0, r1                        ; [r0] == [r1] | Inchar Value == <Enter>
-    jeq _showInitialScreen_Game
-    cmp r0, r2                        ; [r0] == [r2] | Inchar Value == '?'
-    jeq _showInitialScreen_Tutorial
+    call IncharDelay                  ; Lê a entrada com delay (para dar tempo de ver a tela).
+    cmp r0, r1                        ; Irá comparar r0 com r1 = 'Enter'
+    jeq _showInitialScreen_Game       ; Se for igual, vai para o jogo.
+    cmp r0, r2                        ; Irá comparar r0 com r2 = '?'
+    jeq _showInitialScreen_Tutorial   ; Se for igual, vai para o tutorial.
     
+    ; Tela 3
     loadn r0, #InitialScreen3
-    call printScreen
-
-    call IncharDelay                  ; [r0] = Inchar Value
-    cmp r0, r1                        ; [r0] == [r1] | Inchar Value == <Enter>
-    jeq _showInitialScreen_Game
-    cmp r0, r2                        ; [r0] == [r2] | Inchar Value == '?'
-    jeq _showInitialScreen_Tutorial
+    call printScreen           
+    call IncharDelay                  ; Lê a entrada com delay (para dar tempo de ver a tela).
+    cmp r0, r1                        ; Irá comparar r0 com r1 = 'Enter'
+    jeq _showInitialScreen_Game       ; Se for igual, vai para o jogo.
+    cmp r0, r2                        ; Irá comparar r0 com r2 = '?'
+    jeq _showInitialScreen_Tutorial   ; Se for igual, vai para o tutorial.
     
-    jmp _showInitialScreen_Loop 
+    jmp _showInitialScreen_Loop       ; Pula para o começo do loop de animação da tela inicial.
 
   _showInitialScreen_Game:
-    cmp r1, r2
+    cmp r1, r2                    ; Força flag NotEqual (para não chamar tutorial no retorno).
     jmp _showInitialScreen_Exit
   ;
   
   _showInitialScreen_Tutorial:
-    cmp r1, r1
+    cmp r1, r1                    ; Força flag Equal (para chamar tutorial no retorno).
     jmp _showInitialScreen_Exit
   ;
   
   _showInitialScreen_Exit:
-  
+  ; Desempilha os registradores alocados  
   pop r2
   pop r1
   pop r0
@@ -191,22 +208,17 @@ _showInitialScreen:
 
 _showTutorialScreen:
   push r0
-
   loadn r0, #Tutorial_Screen
-  call printScreen
-
-  call waitEnter
-
+  call printScreen            ; Imprime texto do tutorial.
+  call waitEnter              ; Fica esperando até a tecla 'Enter' ser apertada.
   pop r0
   rts
 ; END _showTutorialScreen
 
 _showGameScreen:
   push r0
-
   loadn r0, #GameScreen
-  call printScreen
-
+  call printScreen        ; Imprime o "background" do jogo.
   pop r0
   rts
 ; END _showGameScreen
@@ -216,11 +228,11 @@ _showMoney:
   push r1
   push r5
 
-  loadn r0, #Money
-  loadi r1, r0
-  loadn r5, #560     ; '0' + greenColor ( 48 + 512 )
+  loadn r0, #Money     ; Passa o endereço de Money para r0.
+  loadi r1, r0         ; Busca o conteúdo do endereço de Money e o armazena em r1.
+  loadn r5, #560     ; ASCII '0' + greenColor ( 48 + 512 )
   
-  call printMoney
+  call printMoney      ; Chama rotina que converte Int para String e imprime.
 
   pop r5
   pop r1
@@ -229,6 +241,7 @@ _showMoney:
 ; END _showMoney
 
 _showChips:
+  ; Desenha cada dígito das fichas de aposta e destaca o selecionado.
   push r0
   push r1
   push r2
@@ -238,39 +251,38 @@ _showChips:
   push r6
   push r7
 
-  loadn r0, #0
-  load  r1, ChipsInitialPosition
-  loadn r2, #Chips
-  loadn r3, #ChipsColors
-  loadn r4, #5
+  loadn r0, #0                     ; Índice do loop (0 a 4).
+  load  r1, ChipsInitialPosition   ; Onde desenhar na tela.
+  loadn r2, #Chips                 ; Endereço do vetor de fichas de aposta.
+  loadn r3, #ChipsColors           ; Endereçi do vetor de cores.
+  loadn r4, #5                     ; Contador (5 dígitos).
 
-  loadn r5, #48
-  load  r6, CurChip
+  loadn r5, #48                    ; Base ASCII '0'.
+  load  r6, CurChip                ; Pega qual dígito  das fichas de aposta está selecionado pelo cursor.
 
   _showChips_Loop:
     
-    add r7, r2, r0
-    loadi r7, r7
+    add r7, r2, r0                 ; Calcula endereço: Chips + índice.
+    loadi r7, r7                   ; Lê o valor do dígito
 
-    cmp r0, r6
-    jne _showChips_Loop_White
-      loadn r5, #2864
+    cmp r0, r6                     ; Verifica se é o digito selecionado
+    jne _showChips_Loop_White      ; Se não, pula
+      loadn r5, #2864            ; Se sim, muda cor.
     _showChips_Loop_White:
 
-    add r7, r7, r5
-    loadn r5, #48
+    add r7, r7, r5                 ; Soma Valor + (ASCII + Cor).
+    loadn r5, #48                  ; Reseta a cor base para o próximo loop.
 
-    outchar r7, r1
-    inc r1
+    outchar r7, r1                 ; Imprime o número.
+    inc r1                         ; Avança o cursor de vídeo.
 
-    add r7, r3, r0
+    add r7, r3, r0                 ; Pega a cor/símbolo da ficha.
     loadi r7, r7
+    outchar r7, r1                 ; Imprime o íconhe da ficha ao lado do número.
 
-    outchar r7, r1
-
-    inc r0
-    inc r1
-    inc r1
+    inc r0                         ; Próximo índice.
+    inc r1                         ; Avança vídeo.
+    inc r1                         ; Avança vídeo (espaço extra).
     dec r4
     jnz _showChips_Loop
 
@@ -286,56 +298,47 @@ _showChips:
 ; END _showChips
 
 _showLoseScreen:
+  ; Mostrar telas em caso de perda (Aguarda a entrada do 'Enter' para que o jogo recomece).
   push r0
-
   loadn r0, #LoseScreen1
   call printScreen
   call delay
-
   loadn r0, #LoseScreen2
   call printScreen
   call delay
-  
   loadn r0, #LoseScreen3
   call printScreen
   call delay
-
   call waitEnter    
-  
   pop r0
   rts
 ; END _showLoseScreen
 
 _showStopScreen:
+  ; Tela de Pause (Congela o fluxo do jogo até que o jogador aperte 'Espaço').
   push r0
-
   loadn r0, #StopScreen
   call printScreen
-
   call waitSpace
-
   pop r0
   rts
 ; END _showStopScreen
 
 _showWinScreen:
+  ; Mostrar telas em caso de vitória (Aguarda a entrada do 'Enter' para que o jogo recomece).
   push r0
-
   loadn r0, #WinScreen1
   call printScreen
   call delay
-
   loadn r0, #WinScreen2
   call printScreen
   call delay
-  
-  call waitEnter    
-  
+  call waitEnter  
   pop r0
   rts
 ; END _showWinScreen
 
-; |------------------| Commands Routines |------------------|
+; |------------------| Rotinas de Comando |------------------|
 
 _takeCommand:
   push r0
@@ -344,29 +347,32 @@ _takeCommand:
   push r3
   push r4
 
-  loadn r1, #255  ; Non-Inchar
-  loadn r3, #0
+  loadn r1, #255  ; 255 = Nenhuma tecla pressionada.
+  loadn r3, #0     
   loadn r4, #1000
   
   _takeCommand_Loop:
-    inchar r0
-    cmp r0, r1
-    jne _takeCommand_LoopExit
-    inc r3
-    mod r3, r3, r4
-    jmp _takeCommand_Loop
+    inchar r0                   ; Lê entrada do teclado.
+    cmp r0, r1                  ; Compara para ver se alguma tecla foi pressionada.
+    jne _takeCommand_LoopExit   ; Se algo foi apertado, sai do loop.
+    
+    ; --- Gerador de números aleatórios ---
+    inc r3                 ; Incrementa ao contador.
+    mod r3, r3, r4         ; r3 = r3 % 1000, mantendo r3 sempre entre 0 e 999.
+    jmp _takeCommand_Loop  ; Volta para o início do loop. 
   ;
 
   _takeCommand_LoopExit:
-
+  ; Aqui r3 tem um número aleatório.
+  ; Verifica teclas de movimento (WASD)
   loadn r1, #119	; 'w'
   cmp r0, r1
-  ceq updateChips
+  ceq updateChips  ; Atualiza valor da aposta.
   jeq _takeCommand_SetC
 
-  loadn r1, #97	; 'a'
+  loadn r1, #97	  ; 'a'
   cmp r0, r1
-  ceq updateChips
+  ceq updateChips 
   jeq _takeCommand_SetC
 
   loadn r1, #115	; 's'
@@ -379,48 +385,52 @@ _takeCommand:
   ceq updateChips
   jeq _takeCommand_SetC
 
+  ; Verifica Enter e Espaço
   loadn r1, #13	; <Enter>
   cmp r0, r1
   jeq _takeCommand_Enter
 
-  loadn r1, #32	; <Space>
+  loadn r1, #32	; <Espaço>
   cmp r0, r1
   jeq _takeCommand_Space
 
+  ; Verifica Ajuda
   loadn r1, #63	; '?'
   cmp r0, r1
   jeq _takeCommand_Help
 
+  ; --- CHEATS DE ADMINISTRADOR  ---
   loadn r1, #60 ; '<'
   cmp r0, r1
-  jeq _takeCommand_ADMIN0
+  jeq _takeCommand_ADMIN0  ; Zera Dinheiro (Derrota Imediata).
   
   loadn r1, #62 ; '>'
   cmp r0, r1
-  jeq _takeCommand_ADMIN1
+  jeq _takeCommand_ADMIN1  ; Dinheiro Máx (Vitória).
   
   loadn r1, #43 ; '+'
   cmp r0, r1
-  jeq _takeCommand_ADMIN2
+  jeq _takeCommand_ADMIN2  ; Dobra o dinheiro.
 
   loadn r1, #45 ; '-'
   cmp r0, r1
-  jeq _takeCommand_ADMIN3
+  jeq _takeCommand_ADMIN3  ; Divide o dinheiro por 2.
   
-  jmp _takeCommand_Loop
+  jmp _takeCommand_Loop    ; Se o comando for inválido, volta a esperar.
 
   _takeCommand_Enter:
-    ; Wager
-    mov r0, r3
-    call wager
+    ; Aposta.
+    mov r0, r3             ; Move o número aleatório (r3) para r0.
+    call wager             ; Roda a roleta com esse número.
     jmp _takeCommand_SetC
   ;
 
   _takeCommand_Space:
-    ; Stop
+    ; Parar.
     jmp _takeCommand_ClearC
   ;
 
+; Implementação dos Cheats
   _takeCommand_ADMIN0:
     loadn r0, #0
     store Money, r0
@@ -449,18 +459,18 @@ _takeCommand:
   ;
 
   _takeCommand_Help:
-    ; Help
+    ; Ajuda.
     call _showTutorialScreen
     call _showGameScreen
     jmp _takeCommand_SetC
   ;
 
   _takeCommand_SetC:
-    setc
+    setc                   ; Seta Carry Flag = 1 (Continua Loop).
     jmp _takeCommand_Exit
   ;
   _takeCommand_ClearC:
-    clearc
+    clearc                 ; Limpa Carry Flag = 0 (Para Loop).
     jmp _takeCommand_Exit
   ;
   
@@ -474,7 +484,7 @@ _takeCommand:
   rts
 ; END _takeCommand
 
-; |------------------| Checks Routines |------------------|
+; |------------------| Rotinas de Verificação Lógica |------------------|
 
 _checkMoney:
 
@@ -482,51 +492,48 @@ _checkMoney:
   push r1
 
   load  r0, Money
-
   loadn r1, #0
   cmp r0, r1
-  jel _checkMoney_Underflow
+  jel _checkMoney_Underflow   ; Se Money < 0 (Underflow).
 
   load r1, Limit
   cmp r0, r1
-  jeg _checkMoney_Overflow
+  jeg _checkMoney_Overflow    ; Se Money > 65535 (Overflow). 
 
   loadn r0, #0
   loadn r1, #0
-  jmp _checkMoney_Exit
+  jmp _checkMoney_Exit        ; Retorna flags zeradas (tudo normal).
 
   _checkMoney_Underflow:
     loadn r0, #0
-    loadn r1, #1
+    loadn r1, #1         ; Força flag "<".
     jmp _checkMoney_Exit
   ;
   _checkMoney_Overflow:
     loadn r0, #1
-    loadn r1, #0
+    loadn r1, #0        ; Força flag ">".
     jmp _checkMoney_Exit
   ;
 
   _checkMoney_Exit:
-  cmp r0, r1
-
+  cmp r0, r1          ; Atualiza Flag Register para quem chamou a função.
   pop r1
   pop r0
   rts
 ; END _checkMoney
 
 _checkChips:
-
   push r0
   push r1
 
-  call getChips   ; [r0] = Chips
-  load r1, Money  ; [r1] = Money
+  call getChips   ; Converte o vetor de fichas de aposta para inteiro em r0.
+  load r1, Money  ; Pega saldo.
 
   cmp r0, r1
-  jel _checkChips_Exit
+  jel _checkChips_Exit  
 
   mov r0, r1
-  call setChips   ; if (Money < Chips) Chips = Money
+  call setChips   ; Se (Money < Chips) Chips = Money
 
   _checkChips_Exit:
 
@@ -535,77 +542,67 @@ _checkChips:
   rts
 ; END _checkChips
 
-; |------------------| Initial Sets Routines |------------------|
+; |------------------| Rotinas de Inicialização |------------------|
 
 _setInitialMoney:
-
   push r0
   push r1
 
   load  r0, Money
   loadn r1, #0
-
   cmp r0, r1
-  jel _setInitialMoney_SetMoney
+  jel _setInitialMoney_SetMoney  ; Se <= 0, reseta.
   
   load  r1, Limit
   cmp r0, r1
-  jeg _setInitialMoney_SetMoney
+  jeg _setInitialMoney_SetMoney  ; Se >= Limit, reseta.
   
   jmp _setInitialMoney_Exit
   
   _setInitialMoney_SetMoney:
-  loadn r1, #64
+  loadn r1, #64               ; Reseta para 64 moedas.
   store Money, r1
   
   _setInitialMoney_Exit:
-
   pop r1
   pop r0
   rts
 ; END _setInitialMoney
 
 _setInitialChips:
-
   push r0
   
-  loadn r0, #10
+  loadn r0, #10      ; Reseta aposta para 10.
   call setChips
 
   loadn r0, #3
-  store CurChip, r0
+  store CurChip, r0  ; Cursor está na dezena;
   
   pop r0
   rts
 ; END _setInitialChips
 
-; |==================| Section: Functions |==================|
+; |==================| Seção: Funções Auxiliares |==================|
 
-; |------------------| I/O Functions |------------------|
+; |------------------| Funções de E/S |------------------|
 
-printScreen: ; Use [r0] as Memory Adress of Screen
-		
-	; [r0] = Memory Adress
-	; [r1] = Position to Outchar  | Index of Screen
-	; [r2] = Limit (Constant #1200) 
-  ; [r3] = Character to Outchar
-
+printScreen: 
+  ; Imprime um mapa de tela completo (40x30 caracteres).
+  ; [r0] = Endereço de Memória da String da Tela.
   push r1
   push r2
   push r3
 
   loadn r1, #0
-  loadn r2, #1200
+  loadn r2, #1200   ; Tamanho total da tela
 
   printScreen_Loop:
-
-    add r3, r0, r1
-    loadi r3, r3
-    outchar r3, r1
+    add r3, r0, r1    ; Calcula endereço.
+    loadi r3, r3      ; Carrega caractere.
+    outchar r3, r1    ; Imprime na posição.
     
     inc r1
     cmp r1, r2
-
     jne printScreen_Loop
 
   pop r3
@@ -614,43 +611,33 @@ printScreen: ; Use [r0] as Memory Adress of Screen
 	rts
 ; END printScreen	
 
-IncharDelay: ; User [r0] as Inchar value
-  
-  ; [r0] = Inchar Value
-  ; [r1] = Non-Inchar Value
-  ; [r2] = Delay
-
+IncharDelay: 
+  ; Lê tecla com um loop de delay (para animações).
+  ; [r0] retorna a tecla pressionada.
   push r1
   push r2
 
   loadn r1, #255
-  loadn r2, #16384
+  loadn r2, #16384  ; Duração do delay.
   
   readKeyDelay_Loop:
     inchar r0
     cmp r0, r1
-    jne readKeyDelay_Exit 
+    jne readKeyDelay_Exit  ; Sai imediatamente se tecla pressionada.
     dec r2
-    jnz readKeyDelay_Loop    
+    jnz readKeyDelay_Loop  ; Continua esperando se não pressionar.
   ;
 
   readKeyDelay_Exit:
-
   pop r2
   pop r1
   rts
 ; END IncharDelay
 
-printMoney: ; Use [r1] as Number to Outchar & [r5] as Constant color + '0'
-
-	; [r0] = Constant #10
-	; [r1] = Number to Outchar
-	; [r2] = Digits to Outchar
-	; [r3] = Qty of digits + 1
-	; [r4] = Position to print
-	; [r5] = Constant greenColor + '0' (512 + 48)
-	; [r6] = Qty of digits to clean
-
+printMoney: 
+  ; Converte Inteiro para ASCII e imprime.
+  ; [r1] = Número para imprimir.
+  ; [r5] = Cor + offset '0'.
 	push r0
 	push r1
 	push r2
@@ -659,32 +646,24 @@ printMoney: ; Use [r1] as Number to Outchar & [r5] as Constant color + '0'
   push r5
   push r6
 
-	loadn r0, #10
-	loadn r3, #0
-	loadn r4, #113
-  loadn r6, #5
+	loadn r0, #10      ; Divisor Base 10.
+	loadn r3, #0       ; Contador de dígitos + 1.
+	loadn r4, #113   ; Posição na tela onde o dinheiro aparece.
+  loadn r6, #5       ; Máx dígitos (para limpeza de tela).
 
-	printMoney_PUSH:
-		
-		mod r2, r1, r0
-		
-		push r2
+	printMoney_PUSH: ; Algoritmo de divisão sucessiva.
+		mod r2, r1, r0   ; Pega o resto (unidade).
+		push r2          ; Empilha.
 		inc r3
     dec r6
-		
-		div r1, r1, r0
-		
+		div r1, r1, r0   ; Divide por 10.
 		jnz printMoney_PUSH
 	;
 	
-	printMoney_POP:
-		
-		pop r2
-	
-		add r2, r2, r5
-		
-		outchar r2, r4
-
+	printMoney_POP:    ; Desempilha e imprime.
+		pop r2           ; Recupera número.
+		add r2, r2, r5   ; Transforma número para caracter.
+		outchar r2, r4   ; Imprime número.
 		inc r4
 		dec r3
 		jnz printMoney_POP		
@@ -695,15 +674,13 @@ printMoney: ; Use [r1] as Number to Outchar & [r5] as Constant color + '0'
 
   loadn r2, #' '
 
-  printMoney_Clean:
-
+  printMoney_Clean:  ; Limpa o resto da linha com espaços.
     outchar r2, r4
     inc r4
     dec r6
     jnz printMoney_Clean
 	
 	printMoney_EXIT:
-	
   pop r6
   pop r5
 	pop r4
@@ -715,13 +692,9 @@ printMoney: ; Use [r1] as Number to Outchar & [r5] as Constant color + '0'
 ; END printMoney
 
 waitEnter:
-	
-	; [r0] = Inchar Value
-	; [r1] = <Enter> Value
-	
+  ; Trava a execução até o 'Enter'.
 	push r0
 	push r1
-	
 	loadn r1, #13
 	
 	waitEnter_Loop:
@@ -736,56 +709,41 @@ waitEnter:
 ; END waitEnter
 
 delay:
-
   push r0
   push r1
-
   loadn r1, #65535
   delay_Loop1:
-
-  loadn r0, #30
-  delay_Loop0:
-
-  dec r0
-  jnz delay_Loop0
-  
-  dec r1
-  jnz delay_Loop1
-  
+    loadn r0, #30
+    delay_Loop0:
+      dec r0
+      jnz delay_Loop0
+    ;
+    dec r1
+    jnz delay_Loop1
+  ;
   pop r1
   pop r0
   rts
 ; END delay
 
 waitSpace:
-	
-	; [r0] = Inchar Value
-	; [r1] = <Space> Value
-	
+  ; Trava execução até 'Espaço'.
 	push r0
 	push r1
-	
 	loadn r1, #32
-	
 	waitSpace_Loop:
 		inchar r0				
 		cmp r0, r1
 		jne waitSpace_Loop
 	;
-
 	pop r1
 	pop r0
 	rts
 ; END waitEnter
 
-; |------------------| Chips Functions |------------------|
+; |------------------| Funções de Controle de Fichas/Aposta |------------------|
 
-updateChips: ; User [r0] as WTD
-
-  ; [r0] = Command
-  ; [r1] = Aux
-  ; [r2] = Limit
-
+updateChips:  ; Gerencia a lógica do cursor e alteração de valores (WASD).
   push fr
   push r0
   push r1
@@ -807,20 +765,17 @@ updateChips: ; User [r0] as WTD
   cmp r0, r1
   jeq updateChips_d
 
-  updateChips_w:
+  updateChips_w:    ; Sobe aposta.
     call getChips         ; [r0] = Chips
     call getCurChip       ; [r1] = CurChip
-    
     add r0, r0, r1        ; [r0] = Chips + CurChips
-    
     load  r2, Money
     cmp r0, r2
     cel setChips          ; [r0] <= Money -> Store [r0]
-
     jmp updateChips_Exit
   ;
 
-  updateChips_a:
+  updateChips_a:   ; Cursor Esquerda.
     loadn r2, #0
     load r0, CurChip
     dec r0
@@ -830,20 +785,17 @@ updateChips: ; User [r0] as WTD
     jmp updateChips_Exit
   ;
 
-  updateChips_s:
+  updateChips_s:   ; Desce aposta.
     call getChips         ; [r0] = Chips
     call getCurChip       ; [r1] = CurChip
-    
     sub r0, r0, r1        ; [r0] = [r1] - [r0] === [r0] = CurChip - Chips
-
     loadn r2, #1
     cmp r0, r2
     ceg setChips          ; [r0] >= 1 -> Store [r0]
-
     jmp updateChips_Exit
   ;
 
-  updateChips_d:
+  updateChips_d:   ; Cursor Direita.
     loadn r2, #4
     load r0, CurChip
     inc r0
@@ -854,7 +806,6 @@ updateChips: ; User [r0] as WTD
   ;
 
   updateChips_Exit:
-
   pop r2
   pop r1
   pop r0
@@ -862,8 +813,7 @@ updateChips: ; User [r0] as WTD
   rts
 ; END updateChips
 
-getCurChip: ; Use [r1] as CurChip
-
+getCurChip: ; Usa r1 como CurChip
   push r0
   push r2
   push r3
@@ -881,15 +831,13 @@ getCurChip: ; Use [r1] as CurChip
     jmp getCurChip_Loop
   ;
   getCurChip_Exit:
-
   pop r3
   pop r2
   pop r0
   rts
 ; END getCurChip
 
-getChips: ; Use [r0] as Chips
-
+getChips: ; Usa r0 como Chips.
   push r1
   push r2
   push r3
@@ -902,10 +850,8 @@ getChips: ; Use [r0] as Chips
 
   getChips_Loop:
     loadi r2, r1
-
     mul r0, r0, r3
     add r0, r0, r2
-
     inc r1
     dec r4
     jnz getChips_Loop
@@ -918,8 +864,7 @@ getChips: ; Use [r0] as Chips
   rts
 ; END getChips
 
-setChips: ; Use [r0] as Chips
-
+setChips: ; Usa r0 como Chips.
   push r0
   push r1
   push r2
@@ -928,17 +873,15 @@ setChips: ; Use [r0] as Chips
 
   loadn r1, #Chips
   loadn r2, #4
-  add r1, r1, r2
+  add r1, r1, r2    ; Vai pro fim do vetor.
 
   loadn r2, #5
   loadn r3, #10
   
   setChips_Loop:
-    mod r4, r0, r3
-    div r0, r0, r3
-
-    storei r1, r4
-
+    mod r4, r0, r3   ; Pega dígito.
+    div r0, r0, r3   ; Passa pro próximo.
+    storei r1, r4    ; Guarda.
     dec r1
     dec r2
     jnz setChips_Loop
@@ -952,10 +895,9 @@ setChips: ; Use [r0] as Chips
   rts
 ; END setChips
 
-; |------------------| Wager Functions |------------------|
+; |------------------| Funções da Aposta |------------------|
 
-wager: ; Use [r0] as Number
-	
+wager: ; Usa r0 como Número
 	; [r0] = Number | Chips
 	; [r1] = Aux    | Money
 	; [r2] = Aux    | Aux
@@ -965,8 +907,9 @@ wager: ; Use [r0] as Number
 	push r2
 	push r3
 
-  call writeWager
+  call writeWager   ; Mostra o número na tela.
 
+  ; --- Detecção de padrões (regras para vitória) ---
 	; r0 % 111 == 0:		  ; xxx
 	loadn r1, #111
 	mod r2, r0, r1
@@ -975,7 +918,6 @@ wager: ; Use [r0] as Number
 	; r0 // 10 % 11 == 0:	; xxy
 	loadn r1, #10
 	div r2, r0, r1
-	
 	loadn r1, #11
 	mod r2, r2, r1
 	jz wager_Twice
@@ -983,7 +925,6 @@ wager: ; Use [r0] as Number
 	; r0 % 101 % 10 == 0:	; xyx
 	loadn r1, #101
 	mod r2, r0, r1
-	
 	loadn r1, #10
 	mod r2, r2, r1
 	jz wager_Twice
@@ -991,7 +932,6 @@ wager: ; Use [r0] as Number
 	; r0 % 100 % 11 == 0:	; yxx
 	loadn r1, #100
 	mod r2, r0, r1
-	
 	loadn r1, #11
 	mod r2, r2, r1
 	jz wager_Twice
@@ -999,17 +939,17 @@ wager: ; Use [r0] as Number
 	jmp waget_Once			  ; xyz
 
 	wager_Triple:
-		loadn r2, #3        ; [r2] = #3
+		loadn r2, #3        ; Multiplicador x3
     jmp waget_CalMoney
 	;
 	
 	wager_Twice:
-		loadn r2, #2        ; [r2] = #2
+		loadn r2, #2        ; Multiplicador x2
     jmp waget_CalMoney
 	;
 
   waget_Once:
-		loadn r2, #0        ; [r2] = #0
+		loadn r2, #0        ; Multiplicador x0
     jmp waget_CalMoney
 	;
 
@@ -1025,7 +965,7 @@ wager: ; Use [r0] as Number
   ; Chips *= [r2]
   mul r0, r0, r2      ; [r1] = [r0] * [r2] | [r1] = Chips * [r2]
 
-  ; Check if Overflow
+  ; Verifica  Overflow
   sub r3, r3, r1      ; [r3] = [r3] - [r1] | [r3] = Limit - Money
   cmp r0, r3
   jgr waget_Overflow  ; [r1] > [r3]        | Chips > ( Limit - Money ) -> Overflow
@@ -1039,7 +979,6 @@ wager: ; Use [r0] as Number
   ;
 
   waget_Store:
-
   store Money, r1
 	
 	pop r3
@@ -1049,15 +988,10 @@ wager: ; Use [r0] as Number
 	rts
 ; END wager
 
-writeWager: ; Use [r0] as Number to Outchar
-	
-	; [r0] = prgn to Outchar
-	; [r1] = Constant #10
-	; [r2] = Digit to Outchar
-	; [r3] = Contant yellowColor + '0' (2816 + 48)
-	; [r4] = Positions of the Digits
-	
-	push r0
+writeWager: 
+  ; Imprime os 3 dígitos sorteados na tela (Cor Dourada).
+  ; [r0] = Número para imprimir.
+  push r0
 	push r1
 	push r2
 	push r3
@@ -1066,27 +1000,21 @@ writeWager: ; Use [r0] as Number to Outchar
 	loadn r1, #10
 	loadn r3, #2864
 	
-	mod r2, r0, r1
-	div r0, r0, r1
-	
+	mod r2, r0, r1   ; Unidade.
+	div r0, r0, r1	
 	add r2, r2, r3
-	
 	loadn r4, #583
 	outchar r2, r4
 
-	mod r2, r0, r1
+	mod r2, r0, r1   ; Dezena.
 	div r0, r0, r1
-	
 	add r2, r2, r3
-	
 	loadn r4, #579
 	outchar r2, r4
 	
-	mod r2, r0, r1
+	mod r2, r0, r1   ; Centena.
 	div r0, r0, r1
-	
 	add r2, r2, r3
-	
 	loadn r4, #575
 	outchar r2, r4
 		
@@ -1098,7 +1026,7 @@ writeWager: ; Use [r0] as Number to Outchar
 	rts
 ; END writeprgn
 
-; |==================| Section: Screens |==================|
+; |==================| Seção: Telas |==================|
 
 GameScreen : var #1200
   ;Linha 0
