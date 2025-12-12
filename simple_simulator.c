@@ -201,7 +201,8 @@ loop:
 	rz = pega_pedaco(IR,3,1);
 	
 	// Coloca valor do Mux2 para o registrador com Load
-	if(LoadReg[rx]) reg[rx] = M2;
+	for (i = 0; i < 8; i++)
+    if (LoadReg[i]) reg[i] = M2;
 
 	// Operacao de Escrita da Memoria
 	if (RW == 1) MEMORY[M1] = M5;
@@ -288,7 +289,7 @@ loop:
     				FR[ZERO] = 0;                    // provisório
     				FR[ARITHMETIC_OVERFLOW] = 0;     // limpa overflow
     				// não mexe em Ry nem Rz: base e expoente vêm do programa
-    				state = STATE_EXECUTE;           // vamos iterar em EXECUTE
+    				state = STATE_EXECUTE;           // itera em EXECUTE/EXECUTE2
     				break;
 
 				case INCHAR:
@@ -585,22 +586,22 @@ loop:
 			switch(opcode){
 				case POW:
     				if (reg[rz] == 0) {
-    				    // Terminei: resultado final está em Rx
+    				    // Termina: resultado final está em Rx
     				    FR[ZERO] = (reg[rx] == 0);
     				    state = STATE_FETCH;           // próxima instrução
     				} else {
-    				    // Um passo: Rx = Rx * Ry usando a ULA
+    				    // Rx = Rx * Ry 
     				    selM3 = rx;                    // M3 = reg[rx] (acc)
     				    selM4 = ry;                    // M4 = reg[ry] (base)
     				    OP    = MULT;                  // operação de multiplicação
-    				    carry = 0;
+    				    carry = 0;					   // sem carry para multiplicaçao, segurança
     				    selM2 = sULA;                  // M2 recebe resultado da ULA
     				    LoadReg[rx] = 1;               // grava em Rx
     				    selM6 = sULA;                  // flags da ULA → FR
     				    LoadFR = 1;
 					
-    				    reg[rz]--;                     // expoente-- (destrutivo)
-    				    state = STATE_EXECUTE;         // continua a mesma instrução POW
+						// para decrementar o expoente vai para EXECUTE2
+    				    state = STATE_EXECUTE2;         
     				}
     				break;
 				case LOAD:
@@ -665,13 +666,31 @@ loop:
 			break;
 
 		case STATE_EXECUTE2:
+			switch(opcode) {
+				case RTS:
+					// SP++;
+					IncSP = 1;
+					state=STATE_FETCH;
+					break;
 
-			//case RTS:
-			IncPC = 1;
-			//PC++;
-			
-			// -----------------------------
-			state=STATE_FETCH;
+				case POW:
+					//debug
+					//printf("EXEC2 POW: antes Rz=%d\n", reg[rz]);
+					// 2º passo: decrementar expoente
+					selM3 = rz;                    // M3 = reg[rz] (expoente)
+					selM4 = 8;                     // M4 = 1
+					OP    = SUB;                   // operação de subtração
+					carry = 0;                     // sem carry para subtração, segurança
+					selM2 = sULA;                  // M2 recebe resultado da ULA
+					LoadReg[rz] = 1;               // grava em Rz
+					selM6 = sULA;                  // flags da ULA → FR
+					LoadFR = 1;
+					state = STATE_EXECUTE;         // volta para multiplicar novamente
+					// debug
+					//printf("EXEC2 POW: depois Rz=%d\n", reg[rz]);
+					break;
+				}
+		
 			break;
 
 		case STATE_HALTED:
