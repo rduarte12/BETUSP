@@ -585,7 +585,7 @@ loop:
 			// -----------------------------
 			switch(opcode){
 				case POW:
-    				if (reg[rz] == 0) {
+    				if (reg[rz] <= 0) {
     				    // Termina: resultado final está em Rx
     				    FR[ZERO] = (reg[rx] == 0);
     				    state = STATE_FETCH;           // próxima instrução
