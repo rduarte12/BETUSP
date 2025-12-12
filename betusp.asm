@@ -1,25 +1,23 @@
-; |==================| Seção: Manual do Usuário / Comandos |==================|
-
-; Comandos Normais:
+; Normal Commands:
 ;
-; ['w']       - Chips[CurChip] += 1  (Aumenta aposta no dígito atual)
-; ['a']       - CurChip -= 1         (Move Cursor para Esquerda)
-; ['s']       - CurChip += 1         (Move Cursor para Direita - Lógica invertida no fluxo)
-; ['d']       - Chips[CurChip] -= 1  (Diminui aposta - Lógica invertida no fluxo)
-; [<Enter>]   - Confirmar | Apostar  (Gira a roleta)
-; [<Espaço>]  - Parar                (Pausa o Jogo)
-; ['?']       - Ajuda                (Tela de Tutorial)
+; ['w']       - Chips[CurChips] += 1
+; ['a']       - CurChips -= 1
+; ['s']       - CurChips += 1
+; ['d']       - Chips[CurChips] -= 1
+; [<Enter>]   - Confirm | Wager
+; [<Space>]   - Stop
+; ['?']       - Help
 ;
-; Comandos de Administrador (Cheats):
+; Admin Commands:
 ;
-; ['>']       - Money  = Limit       (Dinheiro Infinito)
-; ['<']       - Money  = 0           (Falência)
-; ['+']       - Money *= 2           (Dobra o Dinheiro)
-; ['-']       - Money /= 2           (Divide o Dinheiro)
+; ['>']       - Money  = Limit
+; ['<']       - Money  = 0
+; ['+']       - Money *= 2
+; ['-']       - Money /= 2
 
 jmp main
 
-; |==================| Seção: Gato |==================|
+; |==================| Section: Cat |==================|
 
 ; This is Sir Gato.   (en)
 ; Este é o Sr. Gato.  (ptbr)
@@ -42,31 +40,25 @@ jmp main
 ; █████▄▄▄▄▀▀┴┴╚╧╧╝╧╧╝┴┴█████
 ; ███████████████████████████
 
-; |==================| Seção: Variáveis de Memória (Dados) |==================|
+; |==================| Section: Memory Variables |==================|
 
-; --- Saldo do jogador ---
-Money : var #1           ; Reserva 1 espaço na memória para o dinheiro.
-  static Money, #64      ; Inicializa com 64 moedas.
+Money : var #1
+  static Money, #64
 ;
 
-; --- Limite máximo de dinheiro ---
-Limit : var #1           ; Reserva 1 espaço na memória para o limite máximo de dinheiro;
-  static Limit, #65535   ; O limite máximo é 65535, que equivale a 2¹⁶ (valor máximo para uma máquina de 16 bits);
+Limit : var #1
+  static Limit, #65535
 ;
 
-; --- Configuração de vídeo ---
-ChipsInitialPosition : var #1           ; Reserva 1 espaço na memória para guardar as coordenadas iniciais das fichas que serão desenhadas.
-  static ChipsInitialPosition, #293   ; Define onde os números das fichas irão começar a ser desenhados na tela.
+ChipsInitialPosition : var #1
+  static ChipsInitialPosition, #293
 ;
 
-; --- Controle de casa decimais das fichas de aposta ----
-CurChip : var #1       ; Reserva 1 espaço na memória para controle de casas decimais (saber qual casa decimal estamos editando para as fichas).
-  static CurChip, #3   ; Define que começa na posição 3 (vai de 0 a 4, começando na dezena de milhar e indo até a unidade);
+CurChip : var #1
+  static CurChip, #3
 ;
 
-; --- Valor fichas de aposta ---
-; O jogo guarda o valor das fichas separadas por dígitos para facilitar a edição na tela.
-Chips : var #5                ; Vetor de 5 posições.
+Chips : var #5
   static Chips + #0, #0       ; 10000
   static Chips + #1, #0       ; 1000
   static Chips + #2, #0       ; 100
@@ -74,132 +66,123 @@ Chips : var #5                ; Vetor de 5 posições.
   static Chips + #4, #0       ; 1
 ;
 
-; --- Tabela de cores das fichas ---
-; Associa cada casa decimal a uma cor diferente na tela.
 ChipsColors : var #5
   static ChipsColors + #0, #1290       ; Roxo         (#1280)
   static ChipsColors + #1, #1034       ; Azul marinho (#1024)
   static ChipsColors + #2, #522        ; Verde        (#512)
   static ChipsColors + #3, #2314       ; Vermelho     (#2304)
-  static ChipsColors + #4, #10           ; Branco       (#0)
+  static ChipsColors + #4, #10         ; Branco       (#0)
 ;
 
-; |==================| Seção: Código Principal (Main) |==================|
+; |==================| Section: Main Code |==================|
 
 main:
 
   GameReStart:
-    ; --- Inicialização de uma nova partida ---
-    call _setInitialMoney   ; Garante que o dinheiro seja válido (reseta para 64 se for 0).
-    call _setInitialChips   ; Reseta as fichas de aposta para o padrão (10).
-    
-    ; --- Telas de introdução ---
-    call _showInitialScreen  ; Mostra a tela de título animada.
-    ceq _showTutorialScreen  ; Se o usuário apertou '?' na tela anterior, chama o tutorial.
+  
+  call _setInitialMoney
+  call _setInitialChips
+
+  call _showInitialScreen
+  ceq _showTutorialScreen
 
 	GameStart:
-		; --- Loop principal do jogo ---
-    call _showGameScreen     ; Desenha a máquina caça-níqueis.
-    call _showMoney          ; Desenha o saldo atual.
-    call _showChips          ; Desenha o valor das fichas de  aposta atual;
+		
+    call _showGameScreen
+    call _showMoney
+    call _showChips
 
 		GameLoop:
-      ; Entrada do jogador
-      call _takeCommand  ; Aguarda a entrada de uma tecla.
-                         ; Retorna Carry = 1 para continuar ou Carry = 0 para parar.
 
-      jnc Game_Stop      ; Se Carry = 0 (tecla espaço), vai para tela de pausa.
+      call _takeCommand
       
-      ; Verificações de estado 
-      call _checkMoney   ; Verifica se ganhou (se chegou ao limite de dinheiro) ou se perdeu (chegou a 0).
-      jle Game_Lose      ; Se Money <= 0, fim de jogo (DERROTA).
-      jgr Game_Win       ; Se Money >= Limit, fim de jogo (VITÓRIA).
+      jnc Game_Stop
+      
+      call _checkMoney
+      jle Game_Lose
+      jgr Game_Win
 
-      ; Checagem de fichas de aposta
-      call _checkChips   ; Garante que fichas de aposta <= dinheiro disponível.
+      call _checkChips
 
-      ; Atualiza valores na tela
-      call _showMoney    ; Atualiza o número do dinheiro na tela;
-			call _showChips    ; Atualiza o número da aposta na tela.
+      call _showMoney
+			call _showChips
 
-			jmp GameLoop       ; Repete o loop do game.
+			jmp GameLoop
 		;
   ;
 
-; --- Rotinas de fim de jogo ---
   Game_Lose:
-    call _showLoseScreen   ; Chama a tela de perda.
-    jmp GameReStart        ; Reinicia o jogo.
+    call _showLoseScreen
+    jmp GameReStart
   ;
 
   Game_Win:
-    call _showWinScreen    ; Chama a tela de vitória.
-    jmp GameReStart        ; Reinicia o jogo.
+    call _showWinScreen
+    jmp GameReStart
   ;
 
   Game_Stop:
-    call _showStopScreen   ; Chama a tela de pause.
-    jmp GameStart          ; Retorna ao jogo (sem resetar o dinheiro).
+    call _showStopScreen
+    jmp GameStart
   ;
   
 ;
 
-; |==================| Seção: Rotinas  |==================|
+; |==================| Section: Routines  |==================|
 
-; |------------------| Rotinas de Tela |------------------|
+; |------------------| Screens Routines |------------------|
 
 _showInitialScreen:
   push r0
   push r1
   push r2
 
-  loadn r1, #13   ; 13 = <Enter> (Código ASCII)
-  loadn r2, #63   ; 63 = '?'     (Código ASCII)
+  loadn r1, #13   ; [r1] = <Enter>
+  loadn r2, #63   ; [r2] = '?'
 
   _showInitialScreen_Loop:
-    ; Loop de animação: Alterna entre 3 telas enquanto espera o usuário.
 
-    ; Tela 1
     loadn r0, #InitialScreen1
     call printScreen
-    call IncharDelay                  ; Lê a entrada com delay (para dar tempo de ver a tela).
-    cmp r0, r1                        ; Irá comparar r0 com r1 = 'Enter'
-    jeq _showInitialScreen_Game       ; Se for igual, vai para o jogo.
-    cmp r0, r2                        ; Irá comparar r0 com r2 = '?'
-    jeq _showInitialScreen_Tutorial   ; Se for igual, vai para o tutorial.
 
-    ; Tela 2
+    call IncharDelay                  ; [r0] = Inchar Value
+    cmp r0, r1                        ; [r0] == [r1] | Inchar Value == <Enter>
+    jeq _showInitialScreen_Game
+    cmp r0, r2                        ; [r0] == [r2] | Inchar Value == '?'
+    jeq _showInitialScreen_Tutorial
+
     loadn r0, #InitialScreen2
     call printScreen
-    call IncharDelay                  ; Lê a entrada com delay (para dar tempo de ver a tela).
-    cmp r0, r1                        ; Irá comparar r0 com r1 = 'Enter'
-    jeq _showInitialScreen_Game       ; Se for igual, vai para o jogo.
-    cmp r0, r2                        ; Irá comparar r0 com r2 = '?'
-    jeq _showInitialScreen_Tutorial   ; Se for igual, vai para o tutorial.
+
+    call IncharDelay                  ; [r0] = Inchar Value
+    cmp r0, r1                        ; [r0] == [r1] | Inchar Value == <Enter>
+    jeq _showInitialScreen_Game
+    cmp r0, r2                        ; [r0] == [r2] | Inchar Value == '?'
+    jeq _showInitialScreen_Tutorial
     
-    ; Tela 3
     loadn r0, #InitialScreen3
-    call printScreen           
-    call IncharDelay                  ; Lê a entrada com delay (para dar tempo de ver a tela).
-    cmp r0, r1                        ; Irá comparar r0 com r1 = 'Enter'
-    jeq _showInitialScreen_Game       ; Se for igual, vai para o jogo.
-    cmp r0, r2                        ; Irá comparar r0 com r2 = '?'
-    jeq _showInitialScreen_Tutorial   ; Se for igual, vai para o tutorial.
+    call printScreen
+
+    call IncharDelay                  ; [r0] = Inchar Value
+    cmp r0, r1                        ; [r0] == [r1] | Inchar Value == <Enter>
+    jeq _showInitialScreen_Game
+    cmp r0, r2                        ; [r0] == [r2] | Inchar Value == '?'
+    jeq _showInitialScreen_Tutorial
     
-    jmp _showInitialScreen_Loop       ; Pula para o começo do loop de animação da tela inicial.
+    jmp _showInitialScreen_Loop 
 
   _showInitialScreen_Game:
-    cmp r1, r2                    ; Força flag NotEqual (para não chamar tutorial no retorno).
+    cmp r1, r2
     jmp _showInitialScreen_Exit
   ;
   
   _showInitialScreen_Tutorial:
-    cmp r1, r1                    ; Força flag Equal (para chamar tutorial no retorno).
+    cmp r1, r1
     jmp _showInitialScreen_Exit
   ;
   
   _showInitialScreen_Exit:
-  ; Desempilha os registradores alocados  
+  
   pop r2
   pop r1
   pop r0
@@ -208,17 +191,22 @@ _showInitialScreen:
 
 _showTutorialScreen:
   push r0
-  loadn r0, #Tutorial_Screen
-  call printScreen            ; Imprime texto do tutorial.
-  call waitEnter              ; Fica esperando até a tecla 'Enter' ser apertada.
+
+  loadn r0, #TutorialScreen
+  call printScreen
+
+  call waitEnter
+
   pop r0
   rts
 ; END _showTutorialScreen
 
 _showGameScreen:
   push r0
+
   loadn r0, #GameScreen
-  call printScreen        ; Imprime o "background" do jogo.
+  call printScreen
+
   pop r0
   rts
 ; END _showGameScreen
@@ -228,11 +216,11 @@ _showMoney:
   push r1
   push r5
 
-  loadn r0, #Money     ; Passa o endereço de Money para r0.
-  loadi r1, r0         ; Busca o conteúdo do endereço de Money e o armazena em r1.
-  loadn r5, #560     ; ASCII '0' + greenColor ( 48 + 512 )
+  loadn r0, #Money
+  loadi r1, r0
+  loadn r5, #560     ; '0' + greenColor ( 48 + 512 )
   
-  call printMoney      ; Chama rotina que converte Int para String e imprime.
+  call printMoney
 
   pop r5
   pop r1
@@ -241,7 +229,6 @@ _showMoney:
 ; END _showMoney
 
 _showChips:
-  ; Desenha cada dígito das fichas de aposta e destaca o selecionado.
   push r0
   push r1
   push r2
@@ -251,38 +238,39 @@ _showChips:
   push r6
   push r7
 
-  loadn r0, #0                     ; Índice do loop (0 a 4).
-  load  r1, ChipsInitialPosition   ; Onde desenhar na tela.
-  loadn r2, #Chips                 ; Endereço do vetor de fichas de aposta.
-  loadn r3, #ChipsColors           ; Endereçi do vetor de cores.
-  loadn r4, #5                     ; Contador (5 dígitos).
+  loadn r0, #0
+  load  r1, ChipsInitialPosition
+  loadn r2, #Chips
+  loadn r3, #ChipsColors
+  loadn r4, #5
 
-  loadn r5, #48                    ; Base ASCII '0'.
-  load  r6, CurChip                ; Pega qual dígito  das fichas de aposta está selecionado pelo cursor.
+  loadn r5, #48
+  load  r6, CurChip
 
   _showChips_Loop:
     
-    add r7, r2, r0                 ; Calcula endereço: Chips + índice.
-    loadi r7, r7                   ; Lê o valor do dígito
+    add r7, r2, r0
+    loadi r7, r7
 
-    cmp r0, r6                     ; Verifica se é o digito selecionado
-    jne _showChips_Loop_White      ; Se não, pula
-      loadn r5, #2864            ; Se sim, muda cor.
+    cmp r0, r6
+    jne _showChips_Loop_White
+      loadn r5, #2864
     _showChips_Loop_White:
 
-    add r7, r7, r5                 ; Soma Valor + (ASCII + Cor).
-    loadn r5, #48                  ; Reseta a cor base para o próximo loop.
+    add r7, r7, r5
+    loadn r5, #48
 
-    outchar r7, r1                 ; Imprime o número.
-    inc r1                         ; Avança o cursor de vídeo.
+    outchar r7, r1
+    inc r1
 
-    add r7, r3, r0                 ; Pega a cor/símbolo da ficha.
+    add r7, r3, r0
     loadi r7, r7
-    outchar r7, r1                 ; Imprime o íconhe da ficha ao lado do número.
 
-    inc r0                         ; Próximo índice.
-    inc r1                         ; Avança vídeo.
-    inc r1                         ; Avança vídeo (espaço extra).
+    outchar r7, r1
+
+    inc r0
+    inc r1
+    inc r1
     dec r4
     jnz _showChips_Loop
 
@@ -298,47 +286,56 @@ _showChips:
 ; END _showChips
 
 _showLoseScreen:
-  ; Mostrar telas em caso de perda (Aguarda a entrada do 'Enter' para que o jogo recomece).
   push r0
+
   loadn r0, #LoseScreen1
   call printScreen
   call delay
+
   loadn r0, #LoseScreen2
   call printScreen
   call delay
+  
   loadn r0, #LoseScreen3
   call printScreen
   call delay
+
   call waitEnter    
+  
   pop r0
   rts
 ; END _showLoseScreen
 
 _showStopScreen:
-  ; Tela de Pause (Congela o fluxo do jogo até que o jogador aperte 'Espaço').
   push r0
+
   loadn r0, #StopScreen
   call printScreen
+
   call waitSpace
+
   pop r0
   rts
 ; END _showStopScreen
 
 _showWinScreen:
-  ; Mostrar telas em caso de vitória (Aguarda a entrada do 'Enter' para que o jogo recomece).
   push r0
+
   loadn r0, #WinScreen1
   call printScreen
   call delay
+
   loadn r0, #WinScreen2
   call printScreen
   call delay
-  call waitEnter  
+  
+  call waitEnter    
+  
   pop r0
   rts
 ; END _showWinScreen
 
-; |------------------| Rotinas de Comando |------------------|
+; |------------------| Commands Routines |------------------|
 
 _takeCommand:
   push r0
@@ -347,32 +344,29 @@ _takeCommand:
   push r3
   push r4
 
-  loadn r1, #255  ; 255 = Nenhuma tecla pressionada.
-  loadn r3, #0     
+  loadn r1, #255  ; Non-Inchar
+  loadn r3, #0
   loadn r4, #1000
   
   _takeCommand_Loop:
-    inchar r0                   ; Lê entrada do teclado.
-    cmp r0, r1                  ; Compara para ver se alguma tecla foi pressionada.
-    jne _takeCommand_LoopExit   ; Se algo foi apertado, sai do loop.
-    
-    ; --- Gerador de números aleatórios ---
-    inc r3                 ; Incrementa ao contador.
-    mod r3, r3, r4         ; r3 = r3 % 1000, mantendo r3 sempre entre 0 e 999.
-    jmp _takeCommand_Loop  ; Volta para o início do loop. 
+    inchar r0
+    cmp r0, r1
+    jne _takeCommand_LoopExit
+    inc r3
+    mod r3, r3, r4
+    jmp _takeCommand_Loop
   ;
 
   _takeCommand_LoopExit:
-  ; Aqui r3 tem um número aleatório.
-  ; Verifica teclas de movimento (WASD)
+
   loadn r1, #119	; 'w'
   cmp r0, r1
-  ceq updateChips  ; Atualiza valor da aposta.
+  ceq updateChips
   jeq _takeCommand_SetC
 
-  loadn r1, #97	  ; 'a'
+  loadn r1, #97	; 'a'
   cmp r0, r1
-  ceq updateChips 
+  ceq updateChips
   jeq _takeCommand_SetC
 
   loadn r1, #115	; 's'
@@ -385,52 +379,48 @@ _takeCommand:
   ceq updateChips
   jeq _takeCommand_SetC
 
-  ; Verifica Enter e Espaço
   loadn r1, #13	; <Enter>
   cmp r0, r1
   jeq _takeCommand_Enter
 
-  loadn r1, #32	; <Espaço>
+  loadn r1, #32	; <Space>
   cmp r0, r1
   jeq _takeCommand_Space
 
-  ; Verifica Ajuda
   loadn r1, #63	; '?'
   cmp r0, r1
   jeq _takeCommand_Help
 
-  ; --- CHEATS DE ADMINISTRADOR  ---
   loadn r1, #60 ; '<'
   cmp r0, r1
-  jeq _takeCommand_ADMIN0  ; Zera Dinheiro (Derrota Imediata).
+  jeq _takeCommand_ADMIN0
   
   loadn r1, #62 ; '>'
   cmp r0, r1
-  jeq _takeCommand_ADMIN1  ; Dinheiro Máx (Vitória).
+  jeq _takeCommand_ADMIN1
   
   loadn r1, #43 ; '+'
   cmp r0, r1
-  jeq _takeCommand_ADMIN2  ; Dobra o dinheiro.
+  jeq _takeCommand_ADMIN2
 
   loadn r1, #45 ; '-'
   cmp r0, r1
-  jeq _takeCommand_ADMIN3  ; Divide o dinheiro por 2.
+  jeq _takeCommand_ADMIN3
   
-  jmp _takeCommand_Loop    ; Se o comando for inválido, volta a esperar.
+  jmp _takeCommand_Loop
 
   _takeCommand_Enter:
-    ; Aposta.
-    mov r0, r3             ; Move o número aleatório (r3) para r0.
-    call wager             ; Roda a roleta com esse número.
+    ; Wager
+    mov r0, r3
+    call wager
     jmp _takeCommand_SetC
   ;
 
   _takeCommand_Space:
-    ; Parar.
+    ; Stop
     jmp _takeCommand_ClearC
   ;
 
-; Implementação dos Cheats
   _takeCommand_ADMIN0:
     loadn r0, #0
     store Money, r0
@@ -459,18 +449,18 @@ _takeCommand:
   ;
 
   _takeCommand_Help:
-    ; Ajuda.
+    ; Help
     call _showTutorialScreen
     call _showGameScreen
     jmp _takeCommand_SetC
   ;
 
   _takeCommand_SetC:
-    setc                   ; Seta Carry Flag = 1 (Continua Loop).
+    setc
     jmp _takeCommand_Exit
   ;
   _takeCommand_ClearC:
-    clearc                 ; Limpa Carry Flag = 0 (Para Loop).
+    clearc
     jmp _takeCommand_Exit
   ;
   
@@ -484,7 +474,7 @@ _takeCommand:
   rts
 ; END _takeCommand
 
-; |------------------| Rotinas de Verificação Lógica |------------------|
+; |------------------| Checks Routines |------------------|
 
 _checkMoney:
 
@@ -492,48 +482,51 @@ _checkMoney:
   push r1
 
   load  r0, Money
+
   loadn r1, #0
   cmp r0, r1
-  jel _checkMoney_Underflow   ; Se Money < 0 (Underflow).
+  jel _checkMoney_Underflow
 
   load r1, Limit
   cmp r0, r1
-  jeg _checkMoney_Overflow    ; Se Money > 65535 (Overflow). 
+  jeg _checkMoney_Overflow
 
   loadn r0, #0
   loadn r1, #0
-  jmp _checkMoney_Exit        ; Retorna flags zeradas (tudo normal).
+  jmp _checkMoney_Exit
 
   _checkMoney_Underflow:
     loadn r0, #0
-    loadn r1, #1         ; Força flag "<".
+    loadn r1, #1
     jmp _checkMoney_Exit
   ;
   _checkMoney_Overflow:
     loadn r0, #1
-    loadn r1, #0        ; Força flag ">".
+    loadn r1, #0
     jmp _checkMoney_Exit
   ;
 
   _checkMoney_Exit:
-  cmp r0, r1          ; Atualiza Flag Register para quem chamou a função.
+  cmp r0, r1
+
   pop r1
   pop r0
   rts
 ; END _checkMoney
 
 _checkChips:
+
   push r0
   push r1
 
-  call getChips   ; Converte o vetor de fichas de aposta para inteiro em r0.
-  load r1, Money  ; Pega saldo.
+  call getChips   ; [r0] = Chips
+  load r1, Money  ; [r1] = Money
 
   cmp r0, r1
-  jel _checkChips_Exit  
+  jel _checkChips_Exit
 
   mov r0, r1
-  call setChips   ; Se (Money < Chips) Chips = Money
+  call setChips   ; if (Money < Chips) Chips = Money
 
   _checkChips_Exit:
 
@@ -542,67 +535,77 @@ _checkChips:
   rts
 ; END _checkChips
 
-; |------------------| Rotinas de Inicialização |------------------|
+; |------------------| Initial Sets Routines |------------------|
 
 _setInitialMoney:
+
   push r0
   push r1
 
   load  r0, Money
   loadn r1, #0
+
   cmp r0, r1
-  jel _setInitialMoney_SetMoney  ; Se <= 0, reseta.
+  jel _setInitialMoney_SetMoney
   
   load  r1, Limit
   cmp r0, r1
-  jeg _setInitialMoney_SetMoney  ; Se >= Limit, reseta.
+  jeg _setInitialMoney_SetMoney
   
   jmp _setInitialMoney_Exit
   
   _setInitialMoney_SetMoney:
-  loadn r1, #64               ; Reseta para 64 moedas.
+  loadn r1, #64
   store Money, r1
   
   _setInitialMoney_Exit:
+
   pop r1
   pop r0
   rts
 ; END _setInitialMoney
 
 _setInitialChips:
+
   push r0
   
-  loadn r0, #10      ; Reseta aposta para 10.
+  loadn r0, #10
   call setChips
 
   loadn r0, #3
-  store CurChip, r0  ; Cursor está na dezena;
+  store CurChip, r0
   
   pop r0
   rts
 ; END _setInitialChips
 
-; |==================| Seção: Funções Auxiliares |==================|
+; |==================| Section: Functions |==================|
 
-; |------------------| Funções de E/S |------------------|
+; |------------------| I/O Functions |------------------|
 
-printScreen: 
-  ; Imprime um mapa de tela completo (40x30 caracteres).
-  ; [r0] = Endereço de Memória da String da Tela.
+printScreen: ; Use [r0] as Memory Adress of Screen
+		
+	; [r0] = Memory Adress
+	; [r1] = Position to Outchar  | Index of Screen
+	; [r2] = Limit (Constant #1200) 
+  ; [r3] = Character to Outchar
+
   push r1
   push r2
   push r3
 
   loadn r1, #0
-  loadn r2, #1200   ; Tamanho total da tela
+  loadn r2, #1200
 
   printScreen_Loop:
-    add r3, r0, r1    ; Calcula endereço.
-    loadi r3, r3      ; Carrega caractere.
-    outchar r3, r1    ; Imprime na posição.
+
+    add r3, r0, r1
+    loadi r3, r3
+    outchar r3, r1
     
     inc r1
     cmp r1, r2
+
     jne printScreen_Loop
 
   pop r3
@@ -611,33 +614,43 @@ printScreen:
 	rts
 ; END printScreen	
 
-IncharDelay: 
-  ; Lê tecla com um loop de delay (para animações).
-  ; [r0] retorna a tecla pressionada.
+IncharDelay: ; User [r0] as Inchar value
+  
+  ; [r0] = Inchar Value
+  ; [r1] = Non-Inchar Value
+  ; [r2] = Delay
+
   push r1
   push r2
 
   loadn r1, #255
-  loadn r2, #16384  ; Duração do delay.
+  loadn r2, #16384
   
   readKeyDelay_Loop:
     inchar r0
     cmp r0, r1
-    jne readKeyDelay_Exit  ; Sai imediatamente se tecla pressionada.
+    jne readKeyDelay_Exit 
     dec r2
-    jnz readKeyDelay_Loop  ; Continua esperando se não pressionar.
+    jnz readKeyDelay_Loop    
   ;
 
   readKeyDelay_Exit:
+
   pop r2
   pop r1
   rts
 ; END IncharDelay
 
-printMoney: 
-  ; Converte Inteiro para ASCII e imprime.
-  ; [r1] = Número para imprimir.
-  ; [r5] = Cor + offset '0'.
+printMoney: ; Use [r1] as Number to Outchar & [r5] as Constant color + '0'
+
+	; [r0] = Constant #10
+	; [r1] = Number to Outchar
+	; [r2] = Digits to Outchar
+	; [r3] = Qty of digits + 1
+	; [r4] = Position to print
+	; [r5] = Constant greenColor + '0' (512 + 48)
+	; [r6] = Qty of digits to clean
+
 	push r0
 	push r1
 	push r2
@@ -646,24 +659,32 @@ printMoney:
   push r5
   push r6
 
-	loadn r0, #10      ; Divisor Base 10.
-	loadn r3, #0       ; Contador de dígitos + 1.
-	loadn r4, #113   ; Posição na tela onde o dinheiro aparece.
-  loadn r6, #5       ; Máx dígitos (para limpeza de tela).
+	loadn r0, #10
+	loadn r3, #0
+	loadn r4, #113
+  loadn r6, #5
 
-	printMoney_PUSH: ; Algoritmo de divisão sucessiva.
-		mod r2, r1, r0   ; Pega o resto (unidade).
-		push r2          ; Empilha.
+	printMoney_PUSH:
+		
+		mod r2, r1, r0
+		
+		push r2
 		inc r3
     dec r6
-		div r1, r1, r0   ; Divide por 10.
+		
+		div r1, r1, r0
+		
 		jnz printMoney_PUSH
 	;
 	
-	printMoney_POP:    ; Desempilha e imprime.
-		pop r2           ; Recupera número.
-		add r2, r2, r5   ; Transforma número para caracter.
-		outchar r2, r4   ; Imprime número.
+	printMoney_POP:
+		
+		pop r2
+	
+		add r2, r2, r5
+		
+		outchar r2, r4
+
 		inc r4
 		dec r3
 		jnz printMoney_POP		
@@ -674,13 +695,15 @@ printMoney:
 
   loadn r2, #' '
 
-  printMoney_Clean:  ; Limpa o resto da linha com espaços.
+  printMoney_Clean:
+
     outchar r2, r4
     inc r4
     dec r6
     jnz printMoney_Clean
 	
 	printMoney_EXIT:
+	
   pop r6
   pop r5
 	pop r4
@@ -692,9 +715,13 @@ printMoney:
 ; END printMoney
 
 waitEnter:
-  ; Trava a execução até o 'Enter'.
+	
+	; [r0] = Inchar Value
+	; [r1] = <Enter> Value
+	
 	push r0
 	push r1
+	
 	loadn r1, #13
 	
 	waitEnter_Loop:
@@ -709,41 +736,56 @@ waitEnter:
 ; END waitEnter
 
 delay:
+
   push r0
   push r1
+
   loadn r1, #65535
   delay_Loop1:
-    loadn r0, #30
-    delay_Loop0:
-      dec r0
-      jnz delay_Loop0
-    ;
-    dec r1
-    jnz delay_Loop1
-  ;
+
+  loadn r0, #30
+  delay_Loop0:
+
+  dec r0
+  jnz delay_Loop0
+  
+  dec r1
+  jnz delay_Loop1
+  
   pop r1
   pop r0
   rts
 ; END delay
 
 waitSpace:
-  ; Trava execução até 'Espaço'.
+	
+	; [r0] = Inchar Value
+	; [r1] = <Space> Value
+	
 	push r0
 	push r1
+	
 	loadn r1, #32
+	
 	waitSpace_Loop:
 		inchar r0				
 		cmp r0, r1
 		jne waitSpace_Loop
 	;
+
 	pop r1
 	pop r0
 	rts
 ; END waitEnter
 
-; |------------------| Funções de Controle de Fichas/Aposta |------------------|
+; |------------------| Chips Functions |------------------|
 
-updateChips:  ; Gerencia a lógica do cursor e alteração de valores (WASD).
+updateChips: ; User [r0] as WTD
+
+  ; [r0] = Command
+  ; [r1] = Aux
+  ; [r2] = Limit
+
   push fr
   push r0
   push r1
@@ -765,17 +807,20 @@ updateChips:  ; Gerencia a lógica do cursor e alteração de valores (WASD).
   cmp r0, r1
   jeq updateChips_d
 
-  updateChips_w:    ; Sobe aposta.
+  updateChips_w:
     call getChips         ; [r0] = Chips
     call getCurChip       ; [r1] = CurChip
+    
     add r0, r0, r1        ; [r0] = Chips + CurChips
+    
     load  r2, Money
     cmp r0, r2
     cel setChips          ; [r0] <= Money -> Store [r0]
+
     jmp updateChips_Exit
   ;
 
-  updateChips_a:   ; Cursor Esquerda.
+  updateChips_a:
     loadn r2, #0
     load r0, CurChip
     dec r0
@@ -785,17 +830,20 @@ updateChips:  ; Gerencia a lógica do cursor e alteração de valores (WASD).
     jmp updateChips_Exit
   ;
 
-  updateChips_s:   ; Desce aposta.
+  updateChips_s:
     call getChips         ; [r0] = Chips
     call getCurChip       ; [r1] = CurChip
+    
     sub r0, r0, r1        ; [r0] = [r1] - [r0] === [r0] = CurChip - Chips
+
     loadn r2, #1
     cmp r0, r2
     ceg setChips          ; [r0] >= 1 -> Store [r0]
+
     jmp updateChips_Exit
   ;
 
-  updateChips_d:   ; Cursor Direita.
+  updateChips_d:
     loadn r2, #4
     load r0, CurChip
     inc r0
@@ -806,6 +854,7 @@ updateChips:  ; Gerencia a lógica do cursor e alteração de valores (WASD).
   ;
 
   updateChips_Exit:
+
   pop r2
   pop r1
   pop r0
@@ -813,7 +862,8 @@ updateChips:  ; Gerencia a lógica do cursor e alteração de valores (WASD).
   rts
 ; END updateChips
 
-getCurChip: ; Usa r1 como CurChip
+getCurChip: ; Use [r1] as CurChip
+
   push r0
   push r2
   push r3
@@ -831,13 +881,15 @@ getCurChip: ; Usa r1 como CurChip
     jmp getCurChip_Loop
   ;
   getCurChip_Exit:
+
   pop r3
   pop r2
   pop r0
   rts
 ; END getCurChip
 
-getChips: ; Usa r0 como Chips.
+getChips: ; Use [r0] as Chips
+
   push r1
   push r2
   push r3
@@ -850,8 +902,10 @@ getChips: ; Usa r0 como Chips.
 
   getChips_Loop:
     loadi r2, r1
+
     mul r0, r0, r3
     add r0, r0, r2
+
     inc r1
     dec r4
     jnz getChips_Loop
@@ -864,7 +918,8 @@ getChips: ; Usa r0 como Chips.
   rts
 ; END getChips
 
-setChips: ; Usa r0 como Chips.
+setChips: ; Use [r0] as Chips
+
   push r0
   push r1
   push r2
@@ -873,15 +928,17 @@ setChips: ; Usa r0 como Chips.
 
   loadn r1, #Chips
   loadn r2, #4
-  add r1, r1, r2    ; Vai pro fim do vetor.
+  add r1, r1, r2
 
   loadn r2, #5
   loadn r3, #10
   
   setChips_Loop:
-    mod r4, r0, r3   ; Pega dígito.
-    div r0, r0, r3   ; Passa pro próximo.
-    storei r1, r4    ; Guarda.
+    mod r4, r0, r3
+    div r0, r0, r3
+
+    storei r1, r4
+
     dec r1
     dec r2
     jnz setChips_Loop
@@ -895,9 +952,10 @@ setChips: ; Usa r0 como Chips.
   rts
 ; END setChips
 
-; |------------------| Funções da Aposta |------------------|
+; |------------------| Wager Functions |------------------|
 
-wager: ; Usa r0 como Número
+wager: ; Use [r0] as Number
+	
 	; [r0] = Number | Chips
 	; [r1] = Aux    | Money
 	; [r2] = Aux    | Aux
@@ -907,9 +965,8 @@ wager: ; Usa r0 como Número
 	push r2
 	push r3
 
-  call writeWager   ; Mostra o número na tela.
+  call writeWager
 
-  ; --- Detecção de padrões (regras para vitória) ---
 	; r0 % 111 == 0:		  ; xxx
 	loadn r1, #111
 	mod r2, r0, r1
@@ -918,6 +975,7 @@ wager: ; Usa r0 como Número
 	; r0 // 10 % 11 == 0:	; xxy
 	loadn r1, #10
 	div r2, r0, r1
+	
 	loadn r1, #11
 	mod r2, r2, r1
 	jz wager_Twice
@@ -925,6 +983,7 @@ wager: ; Usa r0 como Número
 	; r0 % 101 % 10 == 0:	; xyx
 	loadn r1, #101
 	mod r2, r0, r1
+	
 	loadn r1, #10
 	mod r2, r2, r1
 	jz wager_Twice
@@ -932,6 +991,7 @@ wager: ; Usa r0 como Número
 	; r0 % 100 % 11 == 0:	; yxx
 	loadn r1, #100
 	mod r2, r0, r1
+	
 	loadn r1, #11
 	mod r2, r2, r1
 	jz wager_Twice
@@ -939,17 +999,17 @@ wager: ; Usa r0 como Número
 	jmp waget_Once			  ; xyz
 
 	wager_Triple:
-		loadn r2, #3        ; Multiplicador x3
+		loadn r2, #3        ; [r2] = #3
     jmp waget_CalMoney
 	;
 	
 	wager_Twice:
-		loadn r2, #2        ; Multiplicador x2
+		loadn r2, #2        ; [r2] = #2
     jmp waget_CalMoney
 	;
 
   waget_Once:
-		loadn r2, #0        ; Multiplicador x0
+		loadn r2, #0        ; [r2] = #0
     jmp waget_CalMoney
 	;
 
@@ -965,7 +1025,7 @@ wager: ; Usa r0 como Número
   ; Chips *= [r2]
   mul r0, r0, r2      ; [r1] = [r0] * [r2] | [r1] = Chips * [r2]
 
-  ; Verifica  Overflow
+  ; Check if Overflow
   sub r3, r3, r1      ; [r3] = [r3] - [r1] | [r3] = Limit - Money
   cmp r0, r3
   jgr waget_Overflow  ; [r1] > [r3]        | Chips > ( Limit - Money ) -> Overflow
@@ -979,6 +1039,7 @@ wager: ; Usa r0 como Número
   ;
 
   waget_Store:
+
   store Money, r1
 	
 	pop r3
@@ -988,10 +1049,15 @@ wager: ; Usa r0 como Número
 	rts
 ; END wager
 
-writeWager: 
-  ; Imprime os 3 dígitos sorteados na tela (Cor Dourada).
-  ; [r0] = Número para imprimir.
-  push r0
+writeWager: ; Use [r0] as Number to Outchar
+	
+	; [r0] = prgn to Outchar
+	; [r1] = Constant #10
+	; [r2] = Digit to Outchar
+	; [r3] = Contant yellowColor + '0' (2816 + 48)
+	; [r4] = Positions of the Digits
+	
+	push r0
 	push r1
 	push r2
 	push r3
@@ -1000,21 +1066,27 @@ writeWager:
 	loadn r1, #10
 	loadn r3, #2864
 	
-	mod r2, r0, r1   ; Unidade.
-	div r0, r0, r1	
+	mod r2, r0, r1
+	div r0, r0, r1
+	
 	add r2, r2, r3
+	
 	loadn r4, #583
 	outchar r2, r4
 
-	mod r2, r0, r1   ; Dezena.
+	mod r2, r0, r1
 	div r0, r0, r1
+	
 	add r2, r2, r3
+	
 	loadn r4, #579
 	outchar r2, r4
 	
-	mod r2, r0, r1   ; Centena.
+	mod r2, r0, r1
 	div r0, r0, r1
+	
 	add r2, r2, r3
+	
 	loadn r4, #575
 	outchar r2, r4
 		
@@ -1026,7 +1098,7 @@ writeWager:
 	rts
 ; END writeprgn
 
-; |==================| Seção: Telas |==================|
+; |==================| Section: Screens |==================|
 
 GameScreen : var #1200
   ;Linha 0
@@ -13648,6 +13720,1266 @@ WinScreen2 : var #1200
   static WinScreen2 + #1199, #127
 ;
 
-Tutorial_Screen : string "                                                                                                Tutorial                                                          [w] -                                   [s] -                                   [a] -                                   [d] -                                                                                                                                                           [?] -                                                                           <Enter> -                                                                        Resultados:                                                                     Nada    = 0x                            Duplo   = 1x                            Jackpot = 2x                                                                                                                                                                                                                                                                                                                                                                                                                                         "
+TutorialScreen : var #1200
+  ;Linha 0
+  static TutorialScreen + #0, #3967
+  static TutorialScreen + #1, #3967
+  static TutorialScreen + #2, #3967
+  static TutorialScreen + #3, #3967
+  static TutorialScreen + #4, #3967
+  static TutorialScreen + #5, #3967
+  static TutorialScreen + #6, #3967
+  static TutorialScreen + #7, #3967
+  static TutorialScreen + #8, #3967
+  static TutorialScreen + #9, #3967
+  static TutorialScreen + #10, #3967
+  static TutorialScreen + #11, #3967
+  static TutorialScreen + #12, #3967
+  static TutorialScreen + #13, #3967
+  static TutorialScreen + #14, #3967
+  static TutorialScreen + #15, #3967
+  static TutorialScreen + #16, #3967
+  static TutorialScreen + #17, #3967
+  static TutorialScreen + #18, #3967
+  static TutorialScreen + #19, #3967
+  static TutorialScreen + #20, #3967
+  static TutorialScreen + #21, #3967
+  static TutorialScreen + #22, #3967
+  static TutorialScreen + #23, #3967
+  static TutorialScreen + #24, #3967
+  static TutorialScreen + #25, #3967
+  static TutorialScreen + #26, #3967
+  static TutorialScreen + #27, #3967
+  static TutorialScreen + #28, #3967
+  static TutorialScreen + #29, #3967
+  static TutorialScreen + #30, #3967
+  static TutorialScreen + #31, #3967
+  static TutorialScreen + #32, #3967
+  static TutorialScreen + #33, #3967
+  static TutorialScreen + #34, #3967
+  static TutorialScreen + #35, #3967
+  static TutorialScreen + #36, #3967
+  static TutorialScreen + #37, #3967
+  static TutorialScreen + #38, #3967
+  static TutorialScreen + #39, #3967
+
+  ;Linha 1
+  static TutorialScreen + #40, #3967
+  static TutorialScreen + #41, #3967
+  static TutorialScreen + #42, #2825
+  static TutorialScreen + #43, #2825
+  static TutorialScreen + #44, #2825
+  static TutorialScreen + #45, #2825
+  static TutorialScreen + #46, #2825
+  static TutorialScreen + #47, #2825
+  static TutorialScreen + #48, #2825
+  static TutorialScreen + #49, #2825
+  static TutorialScreen + #50, #2825
+  static TutorialScreen + #51, #2825
+  static TutorialScreen + #52, #2825
+  static TutorialScreen + #53, #2825
+  static TutorialScreen + #54, #2825
+  static TutorialScreen + #55, #2825
+  static TutorialScreen + #56, #2825
+  static TutorialScreen + #57, #2825
+  static TutorialScreen + #58, #2825
+  static TutorialScreen + #59, #2825
+  static TutorialScreen + #60, #2825
+  static TutorialScreen + #61, #2825
+  static TutorialScreen + #62, #2825
+  static TutorialScreen + #63, #2825
+  static TutorialScreen + #64, #2825
+  static TutorialScreen + #65, #2825
+  static TutorialScreen + #66, #2825
+  static TutorialScreen + #67, #2825
+  static TutorialScreen + #68, #2825
+  static TutorialScreen + #69, #2825
+  static TutorialScreen + #70, #2825
+  static TutorialScreen + #71, #2825
+  static TutorialScreen + #72, #2825
+  static TutorialScreen + #73, #2825
+  static TutorialScreen + #74, #2825
+  static TutorialScreen + #75, #2825
+  static TutorialScreen + #76, #2825
+  static TutorialScreen + #77, #2825
+  static TutorialScreen + #78, #3967
+  static TutorialScreen + #79, #3967
+
+  ;Linha 2
+  static TutorialScreen + #80, #3967
+  static TutorialScreen + #81, #3967
+  static TutorialScreen + #82, #2825
+  static TutorialScreen + #83, #3967
+  static TutorialScreen + #84, #2825
+  static TutorialScreen + #85, #3967
+  static TutorialScreen + #86, #2825
+  static TutorialScreen + #87, #3967
+  static TutorialScreen + #88, #3967
+  static TutorialScreen + #89, #3967
+  static TutorialScreen + #90, #3967
+  static TutorialScreen + #91, #3967
+  static TutorialScreen + #92, #3967
+  static TutorialScreen + #93, #3967
+  static TutorialScreen + #94, #3967
+  static TutorialScreen + #95, #3967
+  static TutorialScreen + #96, #3967
+  static TutorialScreen + #97, #3967
+  static TutorialScreen + #98, #3967
+  static TutorialScreen + #99, #3967
+  static TutorialScreen + #100, #3967
+  static TutorialScreen + #101, #3967
+  static TutorialScreen + #102, #3967
+  static TutorialScreen + #103, #3967
+  static TutorialScreen + #104, #3967
+  static TutorialScreen + #105, #3967
+  static TutorialScreen + #106, #3967
+  static TutorialScreen + #107, #3967
+  static TutorialScreen + #108, #3967
+  static TutorialScreen + #109, #3967
+  static TutorialScreen + #110, #3967
+  static TutorialScreen + #111, #3967
+  static TutorialScreen + #112, #3967
+  static TutorialScreen + #113, #2825
+  static TutorialScreen + #114, #3967
+  static TutorialScreen + #115, #2825
+  static TutorialScreen + #116, #3967
+  static TutorialScreen + #117, #2825
+  static TutorialScreen + #118, #3967
+  static TutorialScreen + #119, #3967
+
+  ;Linha 3
+  static TutorialScreen + #120, #3967
+  static TutorialScreen + #121, #3967
+  static TutorialScreen + #122, #2825
+  static TutorialScreen + #123, #2825
+  static TutorialScreen + #124, #3967
+  static TutorialScreen + #125, #2825
+  static TutorialScreen + #126, #3967
+  static TutorialScreen + #127, #3967
+  static TutorialScreen + #128, #3967
+  static TutorialScreen + #129, #3967
+  static TutorialScreen + #130, #3967
+  static TutorialScreen + #131, #3967
+  static TutorialScreen + #132, #3967
+  static TutorialScreen + #133, #3967
+  static TutorialScreen + #134, #3967
+  static TutorialScreen + #135, #3967
+  static TutorialScreen + #136, #2900
+  static TutorialScreen + #137, #2901
+  static TutorialScreen + #138, #2900
+  static TutorialScreen + #139, #2895
+  static TutorialScreen + #140, #2898
+  static TutorialScreen + #141, #2889
+  static TutorialScreen + #142, #2881
+  static TutorialScreen + #143, #2892
+  static TutorialScreen + #144, #3967
+  static TutorialScreen + #145, #3967
+  static TutorialScreen + #146, #3967
+  static TutorialScreen + #147, #3967
+  static TutorialScreen + #148, #3967
+  static TutorialScreen + #149, #3967
+  static TutorialScreen + #150, #3967
+  static TutorialScreen + #151, #3967
+  static TutorialScreen + #152, #3967
+  static TutorialScreen + #153, #3967
+  static TutorialScreen + #154, #2825
+  static TutorialScreen + #155, #3967
+  static TutorialScreen + #156, #2825
+  static TutorialScreen + #157, #2825
+  static TutorialScreen + #158, #3967
+  static TutorialScreen + #159, #3967
+
+  ;Linha 4
+  static TutorialScreen + #160, #3967
+  static TutorialScreen + #161, #3967
+  static TutorialScreen + #162, #2825
+  static TutorialScreen + #163, #3967
+  static TutorialScreen + #164, #2825
+  static TutorialScreen + #165, #3967
+  static TutorialScreen + #166, #2825
+  static TutorialScreen + #167, #3967
+  static TutorialScreen + #168, #3967
+  static TutorialScreen + #169, #3967
+  static TutorialScreen + #170, #3967
+  static TutorialScreen + #171, #3967
+  static TutorialScreen + #172, #3967
+  static TutorialScreen + #173, #3967
+  static TutorialScreen + #174, #3967
+  static TutorialScreen + #175, #3967
+  static TutorialScreen + #176, #3967
+  static TutorialScreen + #177, #3967
+  static TutorialScreen + #178, #3967
+  static TutorialScreen + #179, #3967
+  static TutorialScreen + #180, #3967
+  static TutorialScreen + #181, #3967
+  static TutorialScreen + #182, #3967
+  static TutorialScreen + #183, #3967
+  static TutorialScreen + #184, #3967
+  static TutorialScreen + #185, #3967
+  static TutorialScreen + #186, #3967
+  static TutorialScreen + #187, #3967
+  static TutorialScreen + #188, #3967
+  static TutorialScreen + #189, #3967
+  static TutorialScreen + #190, #3967
+  static TutorialScreen + #191, #3967
+  static TutorialScreen + #192, #3967
+  static TutorialScreen + #193, #2825
+  static TutorialScreen + #194, #3967
+  static TutorialScreen + #195, #2825
+  static TutorialScreen + #196, #3967
+  static TutorialScreen + #197, #2825
+  static TutorialScreen + #198, #3967
+  static TutorialScreen + #199, #3967
+
+  ;Linha 5
+  static TutorialScreen + #200, #3967
+  static TutorialScreen + #201, #3967
+  static TutorialScreen + #202, #2825
+  static TutorialScreen + #203, #2825
+  static TutorialScreen + #204, #2825
+  static TutorialScreen + #205, #2825
+  static TutorialScreen + #206, #2825
+  static TutorialScreen + #207, #2825
+  static TutorialScreen + #208, #2825
+  static TutorialScreen + #209, #2825
+  static TutorialScreen + #210, #2825
+  static TutorialScreen + #211, #2825
+  static TutorialScreen + #212, #2825
+  static TutorialScreen + #213, #2825
+  static TutorialScreen + #214, #2825
+  static TutorialScreen + #215, #2825
+  static TutorialScreen + #216, #2825
+  static TutorialScreen + #217, #2825
+  static TutorialScreen + #218, #2825
+  static TutorialScreen + #219, #2825
+  static TutorialScreen + #220, #2825
+  static TutorialScreen + #221, #2825
+  static TutorialScreen + #222, #2825
+  static TutorialScreen + #223, #2825
+  static TutorialScreen + #224, #2825
+  static TutorialScreen + #225, #2825
+  static TutorialScreen + #226, #2825
+  static TutorialScreen + #227, #2825
+  static TutorialScreen + #228, #2825
+  static TutorialScreen + #229, #2825
+  static TutorialScreen + #230, #2825
+  static TutorialScreen + #231, #2825
+  static TutorialScreen + #232, #2825
+  static TutorialScreen + #233, #2825
+  static TutorialScreen + #234, #2825
+  static TutorialScreen + #235, #2825
+  static TutorialScreen + #236, #2825
+  static TutorialScreen + #237, #2825
+  static TutorialScreen + #238, #3967
+  static TutorialScreen + #239, #3967
+
+  ;Linha 6
+  static TutorialScreen + #240, #3967
+  static TutorialScreen + #241, #3967
+  static TutorialScreen + #242, #3967
+  static TutorialScreen + #243, #3967
+  static TutorialScreen + #244, #3967
+  static TutorialScreen + #245, #3967
+  static TutorialScreen + #246, #3967
+  static TutorialScreen + #247, #3967
+  static TutorialScreen + #248, #3967
+  static TutorialScreen + #249, #3967
+  static TutorialScreen + #250, #3967
+  static TutorialScreen + #251, #3967
+  static TutorialScreen + #252, #3967
+  static TutorialScreen + #253, #3967
+  static TutorialScreen + #254, #3967
+  static TutorialScreen + #255, #3967
+  static TutorialScreen + #256, #3967
+  static TutorialScreen + #257, #3967
+  static TutorialScreen + #258, #3967
+  static TutorialScreen + #259, #3967
+  static TutorialScreen + #260, #3967
+  static TutorialScreen + #261, #3967
+  static TutorialScreen + #262, #3967
+  static TutorialScreen + #263, #3967
+  static TutorialScreen + #264, #3967
+  static TutorialScreen + #265, #3967
+  static TutorialScreen + #266, #3967
+  static TutorialScreen + #267, #3967
+  static TutorialScreen + #268, #3967
+  static TutorialScreen + #269, #3967
+  static TutorialScreen + #270, #3967
+  static TutorialScreen + #271, #3967
+  static TutorialScreen + #272, #3967
+  static TutorialScreen + #273, #3967
+  static TutorialScreen + #274, #3967
+  static TutorialScreen + #275, #3967
+  static TutorialScreen + #276, #3967
+  static TutorialScreen + #277, #3967
+  static TutorialScreen + #278, #3967
+  static TutorialScreen + #279, #3967
+
+  ;Linha 7
+  static TutorialScreen + #280, #3967
+  static TutorialScreen + #281, #3967
+  static TutorialScreen + #282, #3967
+  static TutorialScreen + #283, #3967
+  static TutorialScreen + #284, #3967
+  static TutorialScreen + #285, #3967
+  static TutorialScreen + #286, #3967
+  static TutorialScreen + #287, #3967
+  static TutorialScreen + #288, #3967
+  static TutorialScreen + #289, #3967
+  static TutorialScreen + #290, #3967
+  static TutorialScreen + #291, #3967
+  static TutorialScreen + #292, #3967
+  static TutorialScreen + #293, #3967
+  static TutorialScreen + #294, #3967
+  static TutorialScreen + #295, #3967
+  static TutorialScreen + #296, #3967
+  static TutorialScreen + #297, #3967
+  static TutorialScreen + #298, #3967
+  static TutorialScreen + #299, #3967
+  static TutorialScreen + #300, #3967
+  static TutorialScreen + #301, #3967
+  static TutorialScreen + #302, #3967
+  static TutorialScreen + #303, #3967
+  static TutorialScreen + #304, #3967
+  static TutorialScreen + #305, #3967
+  static TutorialScreen + #306, #3967
+  static TutorialScreen + #307, #3967
+  static TutorialScreen + #308, #3967
+  static TutorialScreen + #309, #3967
+  static TutorialScreen + #310, #3967
+  static TutorialScreen + #311, #3967
+  static TutorialScreen + #312, #3967
+  static TutorialScreen + #313, #3967
+  static TutorialScreen + #314, #3967
+  static TutorialScreen + #315, #3967
+  static TutorialScreen + #316, #3967
+  static TutorialScreen + #317, #3967
+  static TutorialScreen + #318, #3967
+  static TutorialScreen + #319, #3967
+
+  ;Linha 8
+  static TutorialScreen + #320, #3967
+  static TutorialScreen + #321, #3967
+  static TutorialScreen + #322, #3967
+  static TutorialScreen + #323, #3967
+  static TutorialScreen + #324, #3967
+  static TutorialScreen + #325, #3967
+  static TutorialScreen + #326, #3967
+  static TutorialScreen + #327, #3967
+  static TutorialScreen + #328, #3967
+  static TutorialScreen + #329, #3967
+  static TutorialScreen + #330, #3967
+  static TutorialScreen + #331, #3967
+  static TutorialScreen + #332, #3967
+  static TutorialScreen + #333, #3967
+  static TutorialScreen + #334, #3967
+  static TutorialScreen + #335, #3967
+  static TutorialScreen + #336, #3967
+  static TutorialScreen + #337, #3967
+  static TutorialScreen + #338, #3967
+  static TutorialScreen + #339, #3967
+  static TutorialScreen + #340, #3967
+  static TutorialScreen + #341, #3967
+  static TutorialScreen + #342, #3967
+  static TutorialScreen + #343, #3967
+  static TutorialScreen + #344, #3967
+  static TutorialScreen + #345, #3967
+  static TutorialScreen + #346, #3967
+  static TutorialScreen + #347, #3967
+  static TutorialScreen + #348, #3967
+  static TutorialScreen + #349, #3967
+  static TutorialScreen + #350, #3967
+  static TutorialScreen + #351, #3967
+  static TutorialScreen + #352, #3967
+  static TutorialScreen + #353, #3967
+  static TutorialScreen + #354, #3967
+  static TutorialScreen + #355, #3967
+  static TutorialScreen + #356, #3967
+  static TutorialScreen + #357, #3967
+  static TutorialScreen + #358, #3967
+  static TutorialScreen + #359, #3967
+
+  ;Linha 9
+  static TutorialScreen + #360, #3967
+  static TutorialScreen + #361, #3967
+  static TutorialScreen + #362, #3967
+  static TutorialScreen + #363, #3967
+  static TutorialScreen + #364, #3967
+  static TutorialScreen + #365, #3967
+  static TutorialScreen + #366, #3967
+  static TutorialScreen + #367, #3967
+  static TutorialScreen + #368, #3967
+  static TutorialScreen + #369, #3967
+  static TutorialScreen + #370, #3967
+  static TutorialScreen + #371, #3967
+  static TutorialScreen + #372, #3967
+  static TutorialScreen + #373, #3967
+  static TutorialScreen + #374, #3967
+  static TutorialScreen + #375, #3967
+  static TutorialScreen + #376, #3967
+  static TutorialScreen + #377, #3967
+  static TutorialScreen + #378, #3967
+  static TutorialScreen + #379, #3967
+  static TutorialScreen + #380, #3967
+  static TutorialScreen + #381, #3967
+  static TutorialScreen + #382, #3967
+  static TutorialScreen + #383, #3967
+  static TutorialScreen + #384, #3967
+  static TutorialScreen + #385, #3967
+  static TutorialScreen + #386, #3967
+  static TutorialScreen + #387, #3967
+  static TutorialScreen + #388, #3967
+  static TutorialScreen + #389, #3967
+  static TutorialScreen + #390, #3967
+  static TutorialScreen + #391, #3967
+  static TutorialScreen + #392, #3967
+  static TutorialScreen + #393, #3967
+  static TutorialScreen + #394, #3967
+  static TutorialScreen + #395, #3967
+  static TutorialScreen + #396, #3967
+  static TutorialScreen + #397, #3967
+  static TutorialScreen + #398, #3967
+  static TutorialScreen + #399, #3967
+
+  ;Linha 10
+  static TutorialScreen + #400, #3967
+  static TutorialScreen + #401, #3967
+  static TutorialScreen + #402, #3967
+  static TutorialScreen + #403, #3967
+  static TutorialScreen + #404, #3967
+  static TutorialScreen + #405, #3967
+  static TutorialScreen + #406, #3967
+  static TutorialScreen + #407, #3967
+  static TutorialScreen + #408, #3967
+  static TutorialScreen + #409, #3967
+  static TutorialScreen + #410, #3967
+  static TutorialScreen + #411, #3967
+  static TutorialScreen + #412, #3967
+  static TutorialScreen + #413, #3967
+  static TutorialScreen + #414, #3967
+  static TutorialScreen + #415, #3967
+  static TutorialScreen + #416, #3967
+  static TutorialScreen + #417, #3967
+  static TutorialScreen + #418, #3967
+  static TutorialScreen + #419, #3967
+  static TutorialScreen + #420, #3967
+  static TutorialScreen + #421, #3967
+  static TutorialScreen + #422, #3967
+  static TutorialScreen + #423, #3967
+  static TutorialScreen + #424, #3967
+  static TutorialScreen + #425, #3967
+  static TutorialScreen + #426, #3967
+  static TutorialScreen + #427, #3967
+  static TutorialScreen + #428, #3967
+  static TutorialScreen + #429, #3967
+  static TutorialScreen + #430, #3967
+  static TutorialScreen + #431, #3967
+  static TutorialScreen + #432, #3967
+  static TutorialScreen + #433, #3967
+  static TutorialScreen + #434, #3967
+  static TutorialScreen + #435, #3967
+  static TutorialScreen + #436, #3967
+  static TutorialScreen + #437, #3967
+  static TutorialScreen + #438, #3967
+  static TutorialScreen + #439, #3967
+
+  ;Linha 11
+  static TutorialScreen + #440, #3967
+  static TutorialScreen + #441, #3967
+  static TutorialScreen + #442, #3967
+  static TutorialScreen + #443, #3967
+  static TutorialScreen + #444, #3967
+  static TutorialScreen + #445, #3967
+  static TutorialScreen + #446, #3967
+  static TutorialScreen + #447, #3967
+  static TutorialScreen + #448, #3967
+  static TutorialScreen + #449, #3967
+  static TutorialScreen + #450, #3967
+  static TutorialScreen + #451, #3967
+  static TutorialScreen + #452, #3967
+  static TutorialScreen + #453, #3967
+  static TutorialScreen + #454, #3967
+  static TutorialScreen + #455, #3967
+  static TutorialScreen + #456, #3967
+  static TutorialScreen + #457, #3967
+  static TutorialScreen + #458, #3967
+  static TutorialScreen + #459, #3967
+  static TutorialScreen + #460, #3967
+  static TutorialScreen + #461, #3967
+  static TutorialScreen + #462, #3967
+  static TutorialScreen + #463, #3967
+  static TutorialScreen + #464, #3967
+  static TutorialScreen + #465, #3967
+  static TutorialScreen + #466, #3967
+  static TutorialScreen + #467, #3967
+  static TutorialScreen + #468, #3967
+  static TutorialScreen + #469, #3967
+  static TutorialScreen + #470, #3967
+  static TutorialScreen + #471, #3967
+  static TutorialScreen + #472, #3967
+  static TutorialScreen + #473, #3967
+  static TutorialScreen + #474, #3967
+  static TutorialScreen + #475, #3967
+  static TutorialScreen + #476, #3967
+  static TutorialScreen + #477, #3967
+  static TutorialScreen + #478, #3967
+  static TutorialScreen + #479, #3967
+
+  ;Linha 12
+  static TutorialScreen + #480, #3967
+  static TutorialScreen + #481, #3967
+  static TutorialScreen + #482, #3967
+  static TutorialScreen + #483, #3967
+  static TutorialScreen + #484, #3967
+  static TutorialScreen + #485, #323
+  static TutorialScreen + #486, #335
+  static TutorialScreen + #487, #333
+  static TutorialScreen + #488, #321
+  static TutorialScreen + #489, #334
+  static TutorialScreen + #490, #324
+  static TutorialScreen + #491, #335
+  static TutorialScreen + #492, #339
+  static TutorialScreen + #493, #3967
+  static TutorialScreen + #494, #3967
+  static TutorialScreen + #495, #3967
+  static TutorialScreen + #496, #3967
+  static TutorialScreen + #497, #3967
+  static TutorialScreen + #498, #3967
+  static TutorialScreen + #499, #3967
+  static TutorialScreen + #500, #3967
+  static TutorialScreen + #501, #3967
+  static TutorialScreen + #502, #3967
+  static TutorialScreen + #503, #3967
+  static TutorialScreen + #504, #3967
+  static TutorialScreen + #505, #3967
+  static TutorialScreen + #506, #3967
+  static TutorialScreen + #507, #3967
+  static TutorialScreen + #508, #3967
+  static TutorialScreen + #509, #3967
+  static TutorialScreen + #510, #3967
+  static TutorialScreen + #511, #3967
+  static TutorialScreen + #512, #3967
+  static TutorialScreen + #513, #3967
+  static TutorialScreen + #514, #3967
+  static TutorialScreen + #515, #3967
+  static TutorialScreen + #516, #3967
+  static TutorialScreen + #517, #3967
+  static TutorialScreen + #518, #3967
+  static TutorialScreen + #519, #3967
+
+  ;Linha 13
+  static TutorialScreen + #520, #3967
+  static TutorialScreen + #521, #3967
+  static TutorialScreen + #522, #3967
+  static TutorialScreen + #523, #3967
+  static TutorialScreen + #524, #3967
+  static TutorialScreen + #525, #3967
+  static TutorialScreen + #526, #3967
+  static TutorialScreen + #527, #3967
+  static TutorialScreen + #528, #3967
+  static TutorialScreen + #529, #3967
+  static TutorialScreen + #530, #3967
+  static TutorialScreen + #531, #3967
+  static TutorialScreen + #532, #3967
+  static TutorialScreen + #533, #3967
+  static TutorialScreen + #534, #3967
+  static TutorialScreen + #535, #3967
+  static TutorialScreen + #536, #3967
+  static TutorialScreen + #537, #3967
+  static TutorialScreen + #538, #3967
+  static TutorialScreen + #539, #3967
+  static TutorialScreen + #540, #3967
+  static TutorialScreen + #541, #3967
+  static TutorialScreen + #542, #3967
+  static TutorialScreen + #543, #3967
+  static TutorialScreen + #544, #3967
+  static TutorialScreen + #545, #3967
+  static TutorialScreen + #546, #3967
+  static TutorialScreen + #547, #3967
+  static TutorialScreen + #548, #3967
+  static TutorialScreen + #549, #3967
+  static TutorialScreen + #550, #3967
+  static TutorialScreen + #551, #3967
+  static TutorialScreen + #552, #3967
+  static TutorialScreen + #553, #3967
+  static TutorialScreen + #554, #3967
+  static TutorialScreen + #555, #3967
+  static TutorialScreen + #556, #3967
+  static TutorialScreen + #557, #3967
+  static TutorialScreen + #558, #3967
+  static TutorialScreen + #559, #3967
+
+  ;Linha 14
+  static TutorialScreen + #560, #3967
+  static TutorialScreen + #561, #3967
+  static TutorialScreen + #562, #3967
+  static TutorialScreen + #563, #3967
+  static TutorialScreen + #564, #3967
+  static TutorialScreen + #565, #3967
+  static TutorialScreen + #566, #3967
+  static TutorialScreen + #567, #3967
+  static TutorialScreen + #568, #3967
+  static TutorialScreen + #569, #3967
+  static TutorialScreen + #570, #3967
+  static TutorialScreen + #571, #3967
+  static TutorialScreen + #572, #3967
+  static TutorialScreen + #573, #3967
+  static TutorialScreen + #574, #3967
+  static TutorialScreen + #575, #3967
+  static TutorialScreen + #576, #3967
+  static TutorialScreen + #577, #3967
+  static TutorialScreen + #578, #3967
+  static TutorialScreen + #579, #3967
+  static TutorialScreen + #580, #3967
+  static TutorialScreen + #581, #3967
+  static TutorialScreen + #582, #3967
+  static TutorialScreen + #583, #3967
+  static TutorialScreen + #584, #3967
+  static TutorialScreen + #585, #45
+  static TutorialScreen + #586, #85
+  static TutorialScreen + #587, #109
+  static TutorialScreen + #588, #3967
+  static TutorialScreen + #589, #110
+  static TutorialScreen + #590, #117
+  static TutorialScreen + #591, #109
+  static TutorialScreen + #592, #101
+  static TutorialScreen + #593, #114
+  static TutorialScreen + #594, #111
+  static TutorialScreen + #595, #3967
+  static TutorialScreen + #596, #3967
+  static TutorialScreen + #597, #3967
+  static TutorialScreen + #598, #3967
+  static TutorialScreen + #599, #3967
+
+  ;Linha 15
+  static TutorialScreen + #600, #3967
+  static TutorialScreen + #601, #3967
+  static TutorialScreen + #602, #91
+  static TutorialScreen + #603, #119
+  static TutorialScreen + #604, #93
+  static TutorialScreen + #605, #45
+  static TutorialScreen + #606, #65
+  static TutorialScreen + #607, #117
+  static TutorialScreen + #608, #109
+  static TutorialScreen + #609, #101
+  static TutorialScreen + #610, #110
+  static TutorialScreen + #611, #116
+  static TutorialScreen + #612, #97
+  static TutorialScreen + #613, #3967
+  static TutorialScreen + #614, #102
+  static TutorialScreen + #615, #105
+  static TutorialScreen + #616, #99
+  static TutorialScreen + #617, #104
+  static TutorialScreen + #618, #97
+  static TutorialScreen + #619, #115
+  static TutorialScreen + #620, #3967
+  static TutorialScreen + #621, #3967
+  static TutorialScreen + #622, #3967
+  static TutorialScreen + #623, #3967
+  static TutorialScreen + #624, #3967
+  static TutorialScreen + #625, #3967
+  static TutorialScreen + #626, #3967
+  static TutorialScreen + #627, #3967
+  static TutorialScreen + #628, #3967
+  static TutorialScreen + #629, #3967
+  static TutorialScreen + #630, #3967
+  static TutorialScreen + #631, #3967
+  static TutorialScreen + #632, #3967
+  static TutorialScreen + #633, #3967
+  static TutorialScreen + #634, #3967
+  static TutorialScreen + #635, #3967
+  static TutorialScreen + #636, #3967
+  static TutorialScreen + #637, #3967
+  static TutorialScreen + #638, #3967
+  static TutorialScreen + #639, #3967
+
+  ;Linha 16
+  static TutorialScreen + #640, #3967
+  static TutorialScreen + #641, #3967
+  static TutorialScreen + #642, #91
+  static TutorialScreen + #643, #115
+  static TutorialScreen + #644, #93
+  static TutorialScreen + #645, #45
+  static TutorialScreen + #646, #68
+  static TutorialScreen + #647, #105
+  static TutorialScreen + #648, #109
+  static TutorialScreen + #649, #105
+  static TutorialScreen + #650, #110
+  static TutorialScreen + #651, #117
+  static TutorialScreen + #652, #105
+  static TutorialScreen + #653, #3967
+  static TutorialScreen + #654, #102
+  static TutorialScreen + #655, #105
+  static TutorialScreen + #656, #99
+  static TutorialScreen + #657, #104
+  static TutorialScreen + #658, #97
+  static TutorialScreen + #659, #115
+  static TutorialScreen + #660, #3967
+  static TutorialScreen + #661, #3967
+  static TutorialScreen + #662, #3967
+  static TutorialScreen + #663, #3967
+  static TutorialScreen + #664, #3967
+  static TutorialScreen + #665, #3967
+  static TutorialScreen + #666, #2353
+  static TutorialScreen + #667, #2354
+  static TutorialScreen + #668, #2355
+  static TutorialScreen + #669, #3967
+  static TutorialScreen + #670, #2365
+  static TutorialScreen + #671, #3967
+  static TutorialScreen + #672, #2352
+  static TutorialScreen + #673, #2424
+  static TutorialScreen + #674, #3967
+  static TutorialScreen + #675, #3967
+  static TutorialScreen + #676, #3967
+  static TutorialScreen + #677, #3967
+  static TutorialScreen + #678, #3967
+  static TutorialScreen + #679, #3967
+
+  ;Linha 17
+  static TutorialScreen + #680, #3967
+  static TutorialScreen + #681, #3967
+  static TutorialScreen + #682, #91
+  static TutorialScreen + #683, #97
+  static TutorialScreen + #684, #93
+  static TutorialScreen + #685, #45
+  static TutorialScreen + #686, #70
+  static TutorialScreen + #687, #105
+  static TutorialScreen + #688, #99
+  static TutorialScreen + #689, #104
+  static TutorialScreen + #690, #97
+  static TutorialScreen + #691, #3967
+  static TutorialScreen + #692, #100
+  static TutorialScreen + #693, #97
+  static TutorialScreen + #694, #3967
+  static TutorialScreen + #695, #100
+  static TutorialScreen + #696, #105
+  static TutorialScreen + #697, #114
+  static TutorialScreen + #698, #101
+  static TutorialScreen + #699, #105
+  static TutorialScreen + #700, #116
+  static TutorialScreen + #701, #97
+  static TutorialScreen + #702, #3967
+  static TutorialScreen + #703, #3967
+  static TutorialScreen + #704, #3967
+  static TutorialScreen + #705, #3967
+  static TutorialScreen + #706, #3967
+  static TutorialScreen + #707, #3967
+  static TutorialScreen + #708, #3967
+  static TutorialScreen + #709, #3967
+  static TutorialScreen + #710, #3967
+  static TutorialScreen + #711, #3967
+  static TutorialScreen + #712, #3967
+  static TutorialScreen + #713, #3967
+  static TutorialScreen + #714, #3967
+  static TutorialScreen + #715, #3967
+  static TutorialScreen + #716, #3967
+  static TutorialScreen + #717, #3967
+  static TutorialScreen + #718, #3967
+  static TutorialScreen + #719, #3967
+
+  ;Linha 18
+  static TutorialScreen + #720, #3967
+  static TutorialScreen + #721, #3967
+  static TutorialScreen + #722, #91
+  static TutorialScreen + #723, #100
+  static TutorialScreen + #724, #93
+  static TutorialScreen + #725, #45
+  static TutorialScreen + #726, #70
+  static TutorialScreen + #727, #105
+  static TutorialScreen + #728, #99
+  static TutorialScreen + #729, #104
+  static TutorialScreen + #730, #97
+  static TutorialScreen + #731, #3967
+  static TutorialScreen + #732, #100
+  static TutorialScreen + #733, #97
+  static TutorialScreen + #734, #3967
+  static TutorialScreen + #735, #101
+  static TutorialScreen + #736, #115
+  static TutorialScreen + #737, #113
+  static TutorialScreen + #738, #117
+  static TutorialScreen + #739, #101
+  static TutorialScreen + #740, #114
+  static TutorialScreen + #741, #100
+  static TutorialScreen + #742, #97
+  static TutorialScreen + #743, #3967
+  static TutorialScreen + #744, #3967
+  static TutorialScreen + #745, #3967
+  static TutorialScreen + #746, #3967
+  static TutorialScreen + #747, #3967
+  static TutorialScreen + #748, #3967
+  static TutorialScreen + #749, #3967
+  static TutorialScreen + #750, #3967
+  static TutorialScreen + #751, #3967
+  static TutorialScreen + #752, #3967
+  static TutorialScreen + #753, #3967
+  static TutorialScreen + #754, #3967
+  static TutorialScreen + #755, #3967
+  static TutorialScreen + #756, #3967
+  static TutorialScreen + #757, #3967
+  static TutorialScreen + #758, #3967
+  static TutorialScreen + #759, #3967
+
+  ;Linha 19
+  static TutorialScreen + #760, #3967
+  static TutorialScreen + #761, #3967
+  static TutorialScreen + #762, #3967
+  static TutorialScreen + #763, #3967
+  static TutorialScreen + #764, #3967
+  static TutorialScreen + #765, #3967
+  static TutorialScreen + #766, #3967
+  static TutorialScreen + #767, #3967
+  static TutorialScreen + #768, #3967
+  static TutorialScreen + #769, #3967
+  static TutorialScreen + #770, #3967
+  static TutorialScreen + #771, #3967
+  static TutorialScreen + #772, #3967
+  static TutorialScreen + #773, #3967
+  static TutorialScreen + #774, #3967
+  static TutorialScreen + #775, #3967
+  static TutorialScreen + #776, #3967
+  static TutorialScreen + #777, #3967
+  static TutorialScreen + #778, #3967
+  static TutorialScreen + #779, #3967
+  static TutorialScreen + #780, #3967
+  static TutorialScreen + #781, #3967
+  static TutorialScreen + #782, #3967
+  static TutorialScreen + #783, #3967
+  static TutorialScreen + #784, #3967
+  static TutorialScreen + #785, #1837
+  static TutorialScreen + #786, #1860
+  static TutorialScreen + #787, #1903
+  static TutorialScreen + #788, #1897
+  static TutorialScreen + #789, #1907
+  static TutorialScreen + #790, #3967
+  static TutorialScreen + #791, #1902
+  static TutorialScreen + #792, #1909
+  static TutorialScreen + #793, #1901
+  static TutorialScreen + #794, #1893
+  static TutorialScreen + #795, #1906
+  static TutorialScreen + #796, #1903
+  static TutorialScreen + #797, #1907
+  static TutorialScreen + #798, #3967
+  static TutorialScreen + #799, #3967
+
+  ;Linha 20
+  static TutorialScreen + #800, #3967
+  static TutorialScreen + #801, #3967
+  static TutorialScreen + #802, #91
+  static TutorialScreen + #803, #63
+  static TutorialScreen + #804, #93
+  static TutorialScreen + #805, #45
+  static TutorialScreen + #806, #84
+  static TutorialScreen + #807, #117
+  static TutorialScreen + #808, #116
+  static TutorialScreen + #809, #111
+  static TutorialScreen + #810, #114
+  static TutorialScreen + #811, #105
+  static TutorialScreen + #812, #97
+  static TutorialScreen + #813, #108
+  static TutorialScreen + #814, #3967
+  static TutorialScreen + #815, #3967
+  static TutorialScreen + #816, #3967
+  static TutorialScreen + #817, #3967
+  static TutorialScreen + #818, #3967
+  static TutorialScreen + #819, #3967
+  static TutorialScreen + #820, #3967
+  static TutorialScreen + #821, #3967
+  static TutorialScreen + #822, #3967
+  static TutorialScreen + #823, #3967
+  static TutorialScreen + #824, #3967
+  static TutorialScreen + #825, #3967
+  static TutorialScreen + #826, #3967
+  static TutorialScreen + #827, #3967
+  static TutorialScreen + #828, #3967
+  static TutorialScreen + #829, #3967
+  static TutorialScreen + #830, #3967
+  static TutorialScreen + #831, #3967
+  static TutorialScreen + #832, #3967
+  static TutorialScreen + #833, #3967
+  static TutorialScreen + #834, #3967
+  static TutorialScreen + #835, #3967
+  static TutorialScreen + #836, #3967
+  static TutorialScreen + #837, #3967
+  static TutorialScreen + #838, #3967
+  static TutorialScreen + #839, #3967
+
+  ;Linha 21
+  static TutorialScreen + #840, #3967
+  static TutorialScreen + #841, #3967
+  static TutorialScreen + #842, #3967
+  static TutorialScreen + #843, #3967
+  static TutorialScreen + #844, #3967
+  static TutorialScreen + #845, #3967
+  static TutorialScreen + #846, #3967
+  static TutorialScreen + #847, #3967
+  static TutorialScreen + #848, #3967
+  static TutorialScreen + #849, #3967
+  static TutorialScreen + #850, #3967
+  static TutorialScreen + #851, #3967
+  static TutorialScreen + #852, #3967
+  static TutorialScreen + #853, #3967
+  static TutorialScreen + #854, #3967
+  static TutorialScreen + #855, #3967
+  static TutorialScreen + #856, #3967
+  static TutorialScreen + #857, #3967
+  static TutorialScreen + #858, #3967
+  static TutorialScreen + #859, #3967
+  static TutorialScreen + #860, #3967
+  static TutorialScreen + #861, #3967
+  static TutorialScreen + #862, #3967
+  static TutorialScreen + #863, #3967
+  static TutorialScreen + #864, #3967
+  static TutorialScreen + #865, #3967
+  static TutorialScreen + #866, #2353
+  static TutorialScreen + #867, #2353
+  static TutorialScreen + #868, #2354
+  static TutorialScreen + #869, #3967
+  static TutorialScreen + #870, #2365
+  static TutorialScreen + #871, #3967
+  static TutorialScreen + #872, #2353
+  static TutorialScreen + #873, #2424
+  static TutorialScreen + #874, #3967
+  static TutorialScreen + #875, #3967
+  static TutorialScreen + #876, #3967
+  static TutorialScreen + #877, #3967
+  static TutorialScreen + #878, #3967
+  static TutorialScreen + #879, #3967
+
+  ;Linha 22
+  static TutorialScreen + #880, #3967
+  static TutorialScreen + #881, #3967
+  static TutorialScreen + #882, #60
+  static TutorialScreen + #883, #83
+  static TutorialScreen + #884, #112
+  static TutorialScreen + #885, #97
+  static TutorialScreen + #886, #99
+  static TutorialScreen + #887, #101
+  static TutorialScreen + #888, #62
+  static TutorialScreen + #889, #3967
+  static TutorialScreen + #890, #80
+  static TutorialScreen + #891, #97
+  static TutorialScreen + #892, #114
+  static TutorialScreen + #893, #97
+  static TutorialScreen + #894, #114
+  static TutorialScreen + #895, #3967
+  static TutorialScreen + #896, #3967
+  static TutorialScreen + #897, #3967
+  static TutorialScreen + #898, #3967
+  static TutorialScreen + #899, #3967
+  static TutorialScreen + #900, #3967
+  static TutorialScreen + #901, #3967
+  static TutorialScreen + #902, #3967
+  static TutorialScreen + #903, #3967
+  static TutorialScreen + #904, #3967
+  static TutorialScreen + #905, #3967
+  static TutorialScreen + #906, #3967
+  static TutorialScreen + #907, #3967
+  static TutorialScreen + #908, #3967
+  static TutorialScreen + #909, #3967
+  static TutorialScreen + #910, #3967
+  static TutorialScreen + #911, #3967
+  static TutorialScreen + #912, #3967
+  static TutorialScreen + #913, #3967
+  static TutorialScreen + #914, #3967
+  static TutorialScreen + #915, #3967
+  static TutorialScreen + #916, #3967
+  static TutorialScreen + #917, #3967
+  static TutorialScreen + #918, #3967
+  static TutorialScreen + #919, #3967
+
+  ;Linha 23
+  static TutorialScreen + #920, #3967
+  static TutorialScreen + #921, #3967
+  static TutorialScreen + #922, #3967
+  static TutorialScreen + #923, #3967
+  static TutorialScreen + #924, #3967
+  static TutorialScreen + #925, #3967
+  static TutorialScreen + #926, #3967
+  static TutorialScreen + #927, #3967
+  static TutorialScreen + #928, #3967
+  static TutorialScreen + #929, #3967
+  static TutorialScreen + #930, #3967
+  static TutorialScreen + #931, #3967
+  static TutorialScreen + #932, #3967
+  static TutorialScreen + #933, #3967
+  static TutorialScreen + #934, #3967
+  static TutorialScreen + #935, #3967
+  static TutorialScreen + #936, #3967
+  static TutorialScreen + #937, #3967
+  static TutorialScreen + #938, #3967
+  static TutorialScreen + #939, #3967
+  static TutorialScreen + #940, #3967
+  static TutorialScreen + #941, #3967
+  static TutorialScreen + #942, #3967
+  static TutorialScreen + #943, #3967
+  static TutorialScreen + #944, #3967
+  static TutorialScreen + #945, #3967
+  static TutorialScreen + #946, #3967
+  static TutorialScreen + #947, #3967
+  static TutorialScreen + #948, #3967
+  static TutorialScreen + #949, #3967
+  static TutorialScreen + #950, #3967
+  static TutorialScreen + #951, #3967
+  static TutorialScreen + #952, #3967
+  static TutorialScreen + #953, #3967
+  static TutorialScreen + #954, #3967
+  static TutorialScreen + #955, #3967
+  static TutorialScreen + #956, #3967
+  static TutorialScreen + #957, #3967
+  static TutorialScreen + #958, #3967
+  static TutorialScreen + #959, #3967
+
+  ;Linha 24
+  static TutorialScreen + #960, #3967
+  static TutorialScreen + #961, #3967
+  static TutorialScreen + #962, #60
+  static TutorialScreen + #963, #69
+  static TutorialScreen + #964, #78
+  static TutorialScreen + #965, #84
+  static TutorialScreen + #966, #69
+  static TutorialScreen + #967, #82
+  static TutorialScreen + #968, #62
+  static TutorialScreen + #969, #3967
+  static TutorialScreen + #970, #2369
+  static TutorialScreen + #971, #2384
+  static TutorialScreen + #972, #2383
+  static TutorialScreen + #973, #2387
+  static TutorialScreen + #974, #2388
+  static TutorialScreen + #975, #2369
+  static TutorialScreen + #976, #2337
+  static TutorialScreen + #977, #3967
+  static TutorialScreen + #978, #3967
+  static TutorialScreen + #979, #3967
+  static TutorialScreen + #980, #3967
+  static TutorialScreen + #981, #3967
+  static TutorialScreen + #982, #3967
+  static TutorialScreen + #983, #3967
+  static TutorialScreen + #984, #3967
+  static TutorialScreen + #985, #45
+  static TutorialScreen + #986, #84
+  static TutorialScreen + #987, #114
+  static TutorialScreen + #988, #101
+  static TutorialScreen + #989, #115
+  static TutorialScreen + #990, #3967
+  static TutorialScreen + #991, #110
+  static TutorialScreen + #992, #117
+  static TutorialScreen + #993, #109
+  static TutorialScreen + #994, #101
+  static TutorialScreen + #995, #114
+  static TutorialScreen + #996, #111
+  static TutorialScreen + #997, #115
+  static TutorialScreen + #998, #3967
+  static TutorialScreen + #999, #3967
+
+  ;Linha 25
+  static TutorialScreen + #1000, #3967
+  static TutorialScreen + #1001, #3967
+  static TutorialScreen + #1002, #3967
+  static TutorialScreen + #1003, #3967
+  static TutorialScreen + #1004, #3967
+  static TutorialScreen + #1005, #3967
+  static TutorialScreen + #1006, #3967
+  static TutorialScreen + #1007, #3967
+  static TutorialScreen + #1008, #3967
+  static TutorialScreen + #1009, #3967
+  static TutorialScreen + #1010, #3967
+  static TutorialScreen + #1011, #3967
+  static TutorialScreen + #1012, #3967
+  static TutorialScreen + #1013, #3967
+  static TutorialScreen + #1014, #3967
+  static TutorialScreen + #1015, #3967
+  static TutorialScreen + #1016, #3967
+  static TutorialScreen + #1017, #3967
+  static TutorialScreen + #1018, #3967
+  static TutorialScreen + #1019, #3967
+  static TutorialScreen + #1020, #3967
+  static TutorialScreen + #1021, #3967
+  static TutorialScreen + #1022, #3967
+  static TutorialScreen + #1023, #3967
+  static TutorialScreen + #1024, #3967
+  static TutorialScreen + #1025, #3967
+  static TutorialScreen + #1026, #3967
+  static TutorialScreen + #1027, #3967
+  static TutorialScreen + #1028, #3967
+  static TutorialScreen + #1029, #3967
+  static TutorialScreen + #1030, #3967
+  static TutorialScreen + #1031, #3967
+  static TutorialScreen + #1032, #3967
+  static TutorialScreen + #1033, #3967
+  static TutorialScreen + #1034, #3967
+  static TutorialScreen + #1035, #3967
+  static TutorialScreen + #1036, #3967
+  static TutorialScreen + #1037, #3967
+  static TutorialScreen + #1038, #3967
+  static TutorialScreen + #1039, #3967
+
+  ;Linha 26
+  static TutorialScreen + #1040, #3967
+  static TutorialScreen + #1041, #3967
+  static TutorialScreen + #1042, #3967
+  static TutorialScreen + #1043, #3967
+  static TutorialScreen + #1044, #3967
+  static TutorialScreen + #1045, #3967
+  static TutorialScreen + #1046, #3967
+  static TutorialScreen + #1047, #3967
+  static TutorialScreen + #1048, #3967
+  static TutorialScreen + #1049, #3967
+  static TutorialScreen + #1050, #3967
+  static TutorialScreen + #1051, #3967
+  static TutorialScreen + #1052, #3967
+  static TutorialScreen + #1053, #3967
+  static TutorialScreen + #1054, #3967
+  static TutorialScreen + #1055, #3967
+  static TutorialScreen + #1056, #3967
+  static TutorialScreen + #1057, #3967
+  static TutorialScreen + #1058, #3967
+  static TutorialScreen + #1059, #3967
+  static TutorialScreen + #1060, #3967
+  static TutorialScreen + #1061, #3967
+  static TutorialScreen + #1062, #3967
+  static TutorialScreen + #1063, #3967
+  static TutorialScreen + #1064, #3967
+  static TutorialScreen + #1065, #3967
+  static TutorialScreen + #1066, #2353
+  static TutorialScreen + #1067, #2353
+  static TutorialScreen + #1068, #2353
+  static TutorialScreen + #1069, #3967
+  static TutorialScreen + #1070, #2365
+  static TutorialScreen + #1071, #3967
+  static TutorialScreen + #1072, #2354
+  static TutorialScreen + #1073, #2424
+  static TutorialScreen + #1074, #3967
+  static TutorialScreen + #1075, #3967
+  static TutorialScreen + #1076, #3967
+  static TutorialScreen + #1077, #3967
+  static TutorialScreen + #1078, #3967
+  static TutorialScreen + #1079, #3967
+
+  ;Linha 27
+  static TutorialScreen + #1080, #3967
+  static TutorialScreen + #1081, #3967
+  static TutorialScreen + #1082, #3967
+  static TutorialScreen + #1083, #3967
+  static TutorialScreen + #1084, #3967
+  static TutorialScreen + #1085, #3967
+  static TutorialScreen + #1086, #3967
+  static TutorialScreen + #1087, #3967
+  static TutorialScreen + #1088, #3967
+  static TutorialScreen + #1089, #3967
+  static TutorialScreen + #1090, #3967
+  static TutorialScreen + #1091, #3967
+  static TutorialScreen + #1092, #3967
+  static TutorialScreen + #1093, #3967
+  static TutorialScreen + #1094, #3967
+  static TutorialScreen + #1095, #3967
+  static TutorialScreen + #1096, #3967
+  static TutorialScreen + #1097, #3967
+  static TutorialScreen + #1098, #3967
+  static TutorialScreen + #1099, #3967
+  static TutorialScreen + #1100, #3967
+  static TutorialScreen + #1101, #3967
+  static TutorialScreen + #1102, #3967
+  static TutorialScreen + #1103, #3967
+  static TutorialScreen + #1104, #3967
+  static TutorialScreen + #1105, #3967
+  static TutorialScreen + #1106, #3967
+  static TutorialScreen + #1107, #3967
+  static TutorialScreen + #1108, #3967
+  static TutorialScreen + #1109, #3967
+  static TutorialScreen + #1110, #3967
+  static TutorialScreen + #1111, #3967
+  static TutorialScreen + #1112, #3967
+  static TutorialScreen + #1113, #3967
+  static TutorialScreen + #1114, #3967
+  static TutorialScreen + #1115, #3967
+  static TutorialScreen + #1116, #3967
+  static TutorialScreen + #1117, #3967
+  static TutorialScreen + #1118, #3967
+  static TutorialScreen + #1119, #3967
+
+  ;Linha 28
+  static TutorialScreen + #1120, #3967
+  static TutorialScreen + #1121, #3967
+  static TutorialScreen + #1122, #3967
+  static TutorialScreen + #1123, #3967
+  static TutorialScreen + #1124, #3967
+  static TutorialScreen + #1125, #3967
+  static TutorialScreen + #1126, #3967
+  static TutorialScreen + #1127, #3967
+  static TutorialScreen + #1128, #3967
+  static TutorialScreen + #1129, #3967
+  static TutorialScreen + #1130, #3967
+  static TutorialScreen + #1131, #3967
+  static TutorialScreen + #1132, #3967
+  static TutorialScreen + #1133, #3967
+  static TutorialScreen + #1134, #3967
+  static TutorialScreen + #1135, #3967
+  static TutorialScreen + #1136, #3967
+  static TutorialScreen + #1137, #3967
+  static TutorialScreen + #1138, #3967
+  static TutorialScreen + #1139, #3967
+  static TutorialScreen + #1140, #3967
+  static TutorialScreen + #1141, #3967
+  static TutorialScreen + #1142, #3967
+  static TutorialScreen + #1143, #3967
+  static TutorialScreen + #1144, #3967
+  static TutorialScreen + #1145, #91
+  static TutorialScreen + #1146, #2890
+  static TutorialScreen + #1147, #2881
+  static TutorialScreen + #1148, #2883
+  static TutorialScreen + #1149, #2891
+  static TutorialScreen + #1150, #2896
+  static TutorialScreen + #1151, #2895
+  static TutorialScreen + #1152, #2900
+  static TutorialScreen + #1153, #2849
+  static TutorialScreen + #1154, #2849
+  static TutorialScreen + #1155, #93
+  static TutorialScreen + #1156, #3967
+  static TutorialScreen + #1157, #3967
+  static TutorialScreen + #1158, #3967
+  static TutorialScreen + #1159, #3967
+
+  ;Linha 29
+  static TutorialScreen + #1160, #3967
+  static TutorialScreen + #1161, #3967
+  static TutorialScreen + #1162, #3967
+  static TutorialScreen + #1163, #3967
+  static TutorialScreen + #1164, #3967
+  static TutorialScreen + #1165, #3967
+  static TutorialScreen + #1166, #3967
+  static TutorialScreen + #1167, #3967
+  static TutorialScreen + #1168, #3967
+  static TutorialScreen + #1169, #3967
+  static TutorialScreen + #1170, #3967
+  static TutorialScreen + #1171, #3967
+  static TutorialScreen + #1172, #3967
+  static TutorialScreen + #1173, #3967
+  static TutorialScreen + #1174, #3967
+  static TutorialScreen + #1175, #3967
+  static TutorialScreen + #1176, #3967
+  static TutorialScreen + #1177, #3967
+  static TutorialScreen + #1178, #3967
+  static TutorialScreen + #1179, #3967
+  static TutorialScreen + #1180, #3967
+  static TutorialScreen + #1181, #3967
+  static TutorialScreen + #1182, #3967
+  static TutorialScreen + #1183, #3967
+  static TutorialScreen + #1184, #3967
+  static TutorialScreen + #1185, #3967
+  static TutorialScreen + #1186, #3967
+  static TutorialScreen + #1187, #3967
+  static TutorialScreen + #1188, #3967
+  static TutorialScreen + #1189, #3967
+  static TutorialScreen + #1190, #3967
+  static TutorialScreen + #1191, #3967
+  static TutorialScreen + #1192, #3967
+  static TutorialScreen + #1193, #3967
+  static TutorialScreen + #1194, #3967
+  static TutorialScreen + #1195, #3967
+  static TutorialScreen + #1196, #3967
+  static TutorialScreen + #1197, #3967
+  static TutorialScreen + #1198, #3967
+  static TutorialScreen + #1199, #3967
+;
 
 ; |==================| END |==================|
