@@ -1,4 +1,4 @@
-
+https://youtu.be/sGQLHYy7X4M
 ### Implementação de intrução nova em processador
 A instrução **POW** foi adicionada como uma operação aritmética da ISA (opcode 38) que calcula \(Rx \leftarrow (Ry)^{Rz}\) em inteiros de 16 bits, usando a própria ULA de multiplicação em vários ciclos do estado `STATE_EXECUTE`.  A implementação é multi‑ciclo: o decode apenas inicializa o acumulador, e o laço de execução fica modelado na própria máquina de estados, repetindo `STATE_EXECUTE` até o expoente zerar.[1]
 
