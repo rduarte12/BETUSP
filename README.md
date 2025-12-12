@@ -179,7 +179,7 @@ case STATE_EXECUTE:
     switch(opcode){
 
     case POW:
-        if (reg[rz] == 0) {
+        if (reg[rz] <= 0) {
             // Terminei: resultado final está em Rx
             FR[ZERO] = (reg[rx] == 0);
             state = STATE_FETCH;          // próxima instrução
@@ -210,14 +210,6 @@ No final do loop principal:
 
 - `resultadoUla = ULA(M3, M4, OP, carry)` calcula `result = reg[rx] * reg[ry]`.[1]
 - `selM2 = sULA` faz `M2 = resultadoUla.result`.  
-- O laço de escrita:
-
-  ```c
-  for (i=0; i<8; i++)
-      if (LoadReg[i]) reg[i] = M2;
-  ```
-
-  grava o novo valor em `reg[rx]` porque `LoadReg[rx] = 1`.[1]
 
 Se `reg[rz]` ainda for maior que zero, a execução passa para `STATE_EXECUTE2`.
 
